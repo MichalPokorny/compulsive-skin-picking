@@ -2,6 +2,8 @@ using System;
 using System.Linq;
 using System.Collections.Generic;
 
+// TODO: propagate "assign" u vsech, co jsou assignute v prvnim kroku
+
 namespace CSPS {
 	public class Solver {
 		private class Step {
@@ -16,8 +18,10 @@ namespace CSPS {
 			public IExternalEnumerator<Value> ValueChoice;
 			public IExternalEnumerator<Variable> VariableChoice;
 
-			public List<IConstrain> Unsolved;
-			public List<IConstrain> Solved;
+			public Dictionary<Constrains.IConstrain, IScratchpad> Scratchpads;
+
+			public List<Constrains.IConstrain> Unsolved;
+			public List<Constrains.IConstrain> Solved;
 
 			public bool Failure { get; private set; }
 			public bool Success { get { return Unsolved.Count == 0; } }
@@ -32,7 +36,7 @@ namespace CSPS {
 				Failure = true;
 			}
 
-			public void MarkConstrainSolved(IConstrain constrain) {
+			public void MarkConstrainSolved(Constrains.IConstrain constrain) {
 				Unsolved.Remove(constrain);
 				Solved.Add(constrain);
 			}
@@ -54,6 +58,13 @@ namespace CSPS {
 			public Step Next() {
 				Dump();
 
+				while (Assignment[VariableChoice.Value].Assigned) {
+					Log("Skipping already assigned variable.");
+					if (!VariableChoice.TryProgress(out VariableChoice)) {
+						throw new Exception("Cannot progress to next variable");
+					}
+					ValueChoice = Assignment.EnumeratePossibleValues(VariableChoice.Value);
+				}
 				Variable variable = VariableChoice.Value;
 				Value value = ValueChoice.Value;
 
@@ -66,7 +77,8 @@ namespace CSPS {
 
 				Step next = new Step();
 
-				next.Assignment = Assignment.Assign(variable, value); // TODO: suboptimal
+				next.Assignment = Assignment.Duplicate(); // TODO: suboptimal
+				next.Assignment[variable].Value = value;
 				if (VariableChoice.TryProgress(out next.VariableChoice)) {
 					next.ValueChoice = next.Assignment.EnumeratePossibleValues(next.VariableChoice.Value);
 				}
@@ -77,33 +89,58 @@ namespace CSPS {
 				next.Unsolved = Unsolved.ToList(); // HACK
 				next.Solved = Solved.ToList(); // HACK
 
+				next.Scratchpads = new Dictionary<Constrains.IConstrain, IScratchpad>();
+				foreach (var pair in Scratchpads) {
+					next.Scratchpads.Add(pair.Key, pair.Value == null ? null : pair.Value.Duplicate());
+				}
+
+				// TODO: kdyz se nejaka promenna ostrihala na jenom 1 prvek, tak to taky chci zpropagovat jako Assign
 				while (triggers.Count > 0) {
-					List<IConstrain> solved = new List<IConstrain>();
+					List<Constrains.IConstrain> solved = new List<Constrains.IConstrain>();
 
 					// TODO: for every *affected* constrain
-					foreach (IConstrain constrain in next.Unsolved) {
-						foreach (ConstrainResult result in constrain.Propagate(next.Assignment, triggers)) {
+					foreach (var constrain in next.Unsolved) {
+						// TODO: for the triggers that affect the constrain
+						IScratchpad scratchpad;
+						if (next.Scratchpads.ContainsKey(constrain)) {
+							scratchpad = next.Scratchpads[constrain];
+						} else {
+							scratchpad = null;
+						}
+						foreach (ConstrainResult result in constrain.Propagate(next.Assignment, triggers, ref scratchpad)) {
 							switch (result.type) {
 								case ConstrainResult.Type.Failure:
+									Log("Constrain {0} failed.", constrain.Identifier);
 									next.MarkFailure();
 									return next;
 								case ConstrainResult.Type.Success:
 									solved.Add(constrain);
 									break;
 								case ConstrainResult.Type.Restrict:
-									if (next.Assignment.ValuePossible(result.variable, result.value)) {
+									if (next.Assignment[result.variable].CanBe(result.value)) {
 										nextTriggers.Add(PropagationTrigger.Restrict(result.variable, result.value));
-										next.Assignment.Restrict(result.variable, result.value);
+										next.Assignment[result.variable].Restrict(result.value);
 									}
 									break;
+								case ConstrainResult.Type.Assign:
+									if (next.Assignment[result.variable].CanBe(result.value)) {
+										nextTriggers.Add(PropagationTrigger.Assign(result.variable, result.value));
+										next.Assignment[result.variable].Value = result.value;
+										break;
+									} else {
+										Log("Constrain {0} assigns {1} to {2}, but that's not a possible value.", constrain.Identifier, result.value, result.variable.Identifier);
+										next.MarkFailure();
+										return next;
+									}
 								// TODO: assign trigger
 								default:
 									throw new Exception("Unknown constrain result"); // TODO
 							}
 						}
+						next.Scratchpads[constrain] = scratchpad;
 					}
 
-					foreach (IConstrain constrain in solved) {
+					foreach (var constrain in solved) {
 						Log("Constrain {0} is now solved", constrain.Identifier);
 						next.MarkConstrainSolved(constrain);
 					}
@@ -124,8 +161,9 @@ namespace CSPS {
 				ID = ID,
 				Assignment = problem.CreateEmptyAssignment(),
 				Unsolved = problem.AllConstrains(),
-				Solved = new List<IConstrain>(), // Empty set: no constrain satisfied so far.
-				VariableChoice = problem.EnumerateVariables()  // TODO: variable choice heuristic...
+				Solved = new List<Constrains.IConstrain>(), // Empty set: no constrain satisfied so far.
+				VariableChoice = problem.EnumerateVariables(),  // TODO: variable choice heuristic...
+				Scratchpads = new Dictionary<Constrains.IConstrain, IScratchpad>()
 			};
 
 			initial.ValueChoice = initial.Assignment.EnumeratePossibleValues(initial.VariableChoice.Value); // TODO: value choice heuristic

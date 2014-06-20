@@ -2,3 +2,8 @@
 - constrain namespace; constrain implies
 - boolean variables
 - boolean constrains with propagation
+- logicka disjunkce splneni constrainu
+- negate constrain
+- or constrain
+
+- +, -, *, /, and, or, xor

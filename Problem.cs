@@ -54,10 +54,10 @@ namespace CSPS {
 
 		// TODO: unique variable names
 		private List<Variable> variables;
-		private List<IConstrain> constrains;
+		private List<Constrains.IConstrain> constrains;
 
 		public interface IConstrains {
-			void Add(IConstrain constrain);
+			void Add(Constrains.IConstrain constrain);
 		};
 
 		private ConstrainsType _Constrains;
@@ -67,7 +67,7 @@ namespace CSPS {
 				this.problem = problem;
 			}
 
-			public void Add(IConstrain constrain) {
+			public void Add(Constrains.IConstrain constrain) {
 				// TODO check that the variable is from this problem
 				// TODO check uniqueness
 				problem.constrains.Add(constrain);
@@ -84,7 +84,7 @@ namespace CSPS {
 
 		public Problem() {
 			variables = new List<Variable>();
-			constrains = new List<IConstrain>();
+			constrains = new List<Constrains.IConstrain>();
 
 			_Variables = new VariablesType(this);
 			_Constrains = new ConstrainsType(this);
@@ -103,7 +103,7 @@ namespace CSPS {
 			return assignment;
 		}
 
-		public List<IConstrain> AllConstrains() {
+		public List<Constrains.IConstrain> AllConstrains() {
 			return constrains.ToList(); // XXX: hack
 		}
 

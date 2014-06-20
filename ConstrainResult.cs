@@ -1,7 +1,7 @@
 namespace CSPS {
 	public struct ConstrainResult {
 		public enum Type {
-			Failure, Success, Restrict
+			Failure, Success, Restrict, Assign
 		}
 
 		public Type type;
@@ -20,9 +20,17 @@ namespace CSPS {
 			}
 		}
 
+		public bool IsFailure { get { return type == Type.Failure; } }
+		public bool IsSuccess { get { return type == Type.Success; } }
+
 		public static ConstrainResult Restrict(Variable variable, Value value) {
 			// TODO: (vic hodnot?)
 			return new ConstrainResult() { type = Type.Restrict, value = value, variable = variable };
+		}
+
+		public static ConstrainResult Assign(Variable variable, Value value) {
+			// TODO: (vic hodnot?)
+			return new ConstrainResult() { type = Type.Assign, value = value, variable = variable };
 		}
 	};
 };

@@ -1,14 +1,14 @@
 namespace CSPS {
+	public interface IVariableManipulator {
+		void Restrict(Value v);
+		Value Value { get; set; }
+		bool Assigned { get; }
+		bool CanBe(Value v);
+	}
+
 	public interface IVariableAssignment {
-		IVariableAssignment Restrict(Variable variable, Value removedValue);
-		IVariableAssignment Assign(Variable variable, Value assignedValue);
-
 		IExternalEnumerator<Value> EnumeratePossibleValues(Variable variable);
-		bool ValuePossible(Variable variable, Value value);
-
-		bool IsValueAssigned(Variable variable);
-		Value GetAssignedValue(Variable variable);
-
+		IVariableManipulator this[Variable variable] { get; }
 		IVariableAssignment Duplicate();
 
 		void Dump();

@@ -24,7 +24,7 @@ namespace CSPS {
 					new [] { 4, 5 }
 				};
 				foreach (var pair in edges) {
-					problem.Constrains.Add(new NotEqualConstrain(v[pair[0]], v[pair[1]]));
+					problem.Constrains.Add(Constrain.NotEqual(v[pair[0]], v[pair[1]]));
 				}
 
 				Solver solver = new Solver();
@@ -32,7 +32,7 @@ namespace CSPS {
 
 				Assert(solver.Solve(problem, out result));
 				foreach (var pair in edges) {
-					Assert(!Value.Equal(result.GetAssignedValue(v[pair[0]]), result.GetAssignedValue(v[pair[1]])));
+					Assert(!Value.Equal(result[v[pair[0]]].Value, result[v[pair[1]]].Value));
 				}
 			}
 		}
