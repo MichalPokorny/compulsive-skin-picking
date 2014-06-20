@@ -21,11 +21,12 @@ namespace CSPS {
 				Log("Propagating");
 				// TODO: AC with supports
 				if (assignment[a].Assigned) {
-					if (assignment[b].Assigned && !assignment[c].Assigned) {
+					if (assignment[b].Assigned && !assignment[c].Assigned && ab_to_c != null) {
 						return Assign(c, ab_to_c(assignment[a].Value, assignment[b].Value));
-					} else if (assignment[c].Assigned && !assignment[b].Assigned) {
+					} else if (assignment[c].Assigned && !assignment[b].Assigned && ac_to_b != null) {
 						return Assign(b, ac_to_b(assignment[a].Value, assignment[b].Value));
 					} else if (assignment[b].Assigned && assignment[c].Assigned) {
+						// TODO: tady bych nemel spolehat ze mam zrovna ab_to_c...
 						if (Value.Equal(assignment[c].Value, ab_to_c(assignment[a].Value, assignment[b].Value))) {
 							Log("Success.");
 							return Success;
@@ -35,7 +36,7 @@ namespace CSPS {
 						}
 					}
 				} else {
-					if (assignment[b].Assigned && assignment[c].Assigned) {
+					if (assignment[b].Assigned && assignment[c].Assigned && bc_to_a != null) {
 						return Assign(a, bc_to_a(assignment[b].Value, assignment[c].Value));
 					}
 				}

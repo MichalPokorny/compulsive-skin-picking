@@ -24,12 +24,15 @@ namespace CSPS {
 				// problem.Constrains.Add(Constrain.Plus(E, N, D));
 				// problem.Constrains.Add(Constrain.Plus(Y, E, N));
 				//
-				// problem.Constrains.Add(
-				//	Constrain.Equal(
-				//		(S * 1000 + E * 100 + N * 10 + D) + (M * 1000 + O * 100 + R * 10 + E),
-				//		M * 10000 + O * 1000 + N * 100 + E * 10 + Y
-				//	)
-				// );
+				Variable SEND = (S * 1000 + E * 100 + N * 10 + D).Build(problem);
+				Variable MORE = (M * 1000 + O * 100 + R * 10 + E).Build(problem);
+				Variable MONEY = (M * 10000 + O * 1000 + N * 100 + E * 10 + Y).Build(problem);
+				problem.Constrains.Add(
+					Constrain.Equal(
+						(SEND + MORE).Build(problem),
+						MONEY
+					)
+				);
 
 				// TODO: dalsi test: maximalizace
 				Solver solver = new Solver();

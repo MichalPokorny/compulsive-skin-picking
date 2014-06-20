@@ -8,6 +8,8 @@ namespace CSPS {
 			// TODO implement and test
 			// public Variables[] AddInteger(int minimum, int maximum); // minimum: inclusive, maximum: exclusive
 			Variable[] AddIntegers(int count, int minimum, int maximum, Func<int, string> namingConvention = null); // minimum: inclusive, maximum: exclusive
+			Variable AddInteger(int minimum, int maximum, string name = null);
+			Variable AddInteger(string name = null);
 		}
 
 		private VariablesType _Variables;
@@ -17,10 +19,39 @@ namespace CSPS {
 			}
 		}
 
+		private string GenerateVariableName() {
+			Console.WriteLine("Creating variable number {0}", variables.Count + 1);
+			return string.Format("Var{0}", variables.Count + 1);
+		}
+
 		private class VariablesType: IVariables {
 			Problem problem;
 			public VariablesType(Problem problem) {
 				this.problem = problem;
+			}
+			public Variable AddInteger(string name = null) {
+				Variable variable = new Variable() {
+					Range = new ValueRange() {
+						MinUnbounded = true,
+						MaxUnbounded = true
+					},
+					Identifier = name ?? problem.GenerateVariableName()
+					// TODO: unique names
+				};
+				problem.variables.Add(variable);
+				return variable;
+			}
+			public Variable AddInteger(int minimum, int maximum, string name = null) {
+				Variable variable = new Variable() {
+					Range = new ValueRange() {
+						Minimum = minimum,
+						Maximum = maximum
+					},
+					Identifier = name ?? problem.GenerateVariableName()
+					// TODO: unique names
+				};
+				problem.variables.Add(variable);
+				return variable;
 			}
 			public Variable[] AddIntegers(int count, int minimum, int maximum, Func<int, string> namingConvention = null) {
 				if (count < 0) {
@@ -35,15 +66,17 @@ namespace CSPS {
 				for (int i = 0; i < count; i++) {
 					string name;
 					if (namingConvention == null) {
-						name = string.Format("Var{0:5}", problem.variables.Count + 1);
+						name = problem.GenerateVariableName();
 					} else {
 						name = namingConvention(i);
 					}
 					// TODO: check uniqueness
 					result[i] = new Variable() {
 						Identifier = name,
-						Minimum = minimum,
-						Maximum = maximum
+						Range = {
+							Minimum = minimum,
+							Maximum = maximum
+						}
 					};
 					problem.variables.Add(result[i]);
 					// TODO: unique variable names
@@ -91,16 +124,7 @@ namespace CSPS {
 		}
 
 		public IVariableAssignment CreateEmptyAssignment() {
-			VariableAssignment assignment = new VariableAssignment();
-			assignment.values = new Dictionary<string, List<int>>();
-			foreach (Variable v in variables) {
-				List<int> list = new List<int>();
-				for (int i = v.Minimum; i < v.Maximum; i++) {
-					list.Add(i);
-				}
-				assignment.values[v.Identifier] = list;
-			}
-			return assignment;
+			return new VariableAssignment(variables);
 		}
 
 		public List<Constrains.IConstrain> AllConstrains() {

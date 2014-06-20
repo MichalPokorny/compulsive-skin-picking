@@ -4,11 +4,11 @@ using System.Collections.Generic;
 
 namespace CSPS {
 	namespace Constrains {
-		public class FunctionalConstrain: AbstractConstrain {
+		public class Relational: AbstractConstrain {
 			private Variable[] dependencies;
 			private Func<Value[], bool> func;
 
-			public FunctionalConstrain(Func<Value[], bool> func, params Variable[] dependencies) {
+			public Relational(Func<Value[], bool> func, params Variable[] dependencies) {
 				this.func = func;
 				this.dependencies = dependencies;
 			}
@@ -28,7 +28,7 @@ namespace CSPS {
 
 			public override string Identifier {
 				get {
-					return "<Functional Constrain>"; // TODO
+					return "<Relational>"; // TODO
 				}
 			}
 

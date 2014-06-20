@@ -4,7 +4,16 @@ using System.Collections.Generic;
 
 namespace CSPS {
 	public class VariableAssignment: IVariableAssignment {
-		public Dictionary<string, List<int>> values;
+		private Dictionary<string, List<ValueRange>> values;
+
+		public VariableAssignment(IEnumerable<Variable> variables) {
+			values = new Dictionary<string, List<ValueRange>>();
+			foreach (var variable in variables) {
+				values[variable.Identifier] = new List<ValueRange>() { variable.Range };
+			}
+		}
+
+		private VariableAssignment() {}
 
 		private class VariableManipulator: IVariableManipulator {
 			private VariableAssignment _this;
@@ -15,19 +24,23 @@ namespace CSPS {
 				this.variable = variable;
 			}
 
-			private List<int> Values {
+			private List<ValueRange> Values {
 				get {
 					return _this.values[variable.Identifier];
-				}
-				set {
-					_this.values[variable.Identifier] = value;
 				}
 			}
 
 			public void Restrict(Value v) {
-				if (!Values.Remove(v.value)) {
-					throw new Exception(string.Format("Cannot remove {0} from domain of {1}", v.value, variable.Identifier));
+				foreach (var range in Values) {
+					if (range.Contains(v)) {
+						Values.Remove(range);
+						foreach (var newRange in range.SplitAndRemove(v.value)) {
+							Values.Add(newRange);
+						}
+						return;
+					}
 				}
+				throw new Exception(string.Format("Cannot remove {0} from domain of {1}, it's not in the domain", v.value, variable.Identifier));
 			}
 
 			public Value Value {
@@ -35,22 +48,28 @@ namespace CSPS {
 					if (!Assigned) {
 						throw new Exception(string.Format("No value assigned to {0} yet", variable.Identifier));
 					}
-					return new Value(Values[0]);
+					return new Value(Values[0].Singleton);
 				}
 				set {
-					if (!Values.Contains(value.value)) {
+					if (!CanBe(value)) {
 						throw new Exception(string.Format("Cannot assign {0} to variable {1}", value.value, variable.Identifier));
 					}
-					Values = new List<int> { value.value };
+					Values.Clear();
+					Values.Add(value.value);
 				}
 			}
 			public bool Assigned {
 				get {
-					return _this.values[variable.Identifier].Count == 1;
+					return Values.Count == 1 && Values[0].IsSingleton;
 				}
 			}
-			public bool CanBe(Value v) {
-				return _this.values[variable.Identifier].Contains(v.value);
+			public bool CanBe(Value value) {
+				foreach (var range in Values) {
+					if (range.Contains(value)) {
+						return true;
+					}
+				}
+				return false;
 			}
 		}
 
@@ -60,15 +79,64 @@ namespace CSPS {
 			}
 		}
 
+		private class ValuesEnumerator: IExternalEnumerator<Value> {
+			private int sampleLength;
+			private int range;
+			private ValueRange[] ranges;
+
+			public ValuesEnumerator(ValueRange[] ranges) {
+				this.ranges = ranges;
+				this.range = 0;
+				this.sampleLength = 1;
+			}
+
+			public bool TryProgress(out IExternalEnumerator<Value> next) {
+				if (range + 1 < ranges.Length) {
+					next = new ValuesEnumerator(ranges) {
+						range = range + 1,
+						sampleLength = sampleLength
+					};
+					return true;
+				} else {
+					int r;
+					for (r = 0; r < ranges.Length; r++) {
+						if (ranges[r].AtLeastElements(sampleLength + 1)) {
+							Console.WriteLine("Range {0} has as least {1} elements", r, sampleLength + 1);
+							break;
+						}
+					}
+
+					if (r == ranges.Length) {
+						next = null;
+						return false;
+					} else {
+						next = new ValuesEnumerator(ranges) {
+							range = r,
+							sampleLength = sampleLength + 1
+						};
+						return true;
+					}
+				}
+			}
+
+			public Value Value {
+				get {
+					Console.WriteLine("Ranges[{0}] (={1}) [{2}]", range, ranges[range], sampleLength - 1);
+					return ranges[range][sampleLength - 1];
+				}
+			}
+		};
+
 		public IExternalEnumerator<Value> EnumeratePossibleValues(Variable variable) {
-			// SLOW
-			return values[variable.Identifier].GetTransformedExternalEnumerator(x => new Value(x));
+			// SLOW AND STUPID
+			Console.WriteLine("Enumerating possible values for {0}", variable.Identifier);
+			return new ValuesEnumerator(values[variable.Identifier].ToList().ToArray());
 		}
 
 		// SLOW
 		public IVariableAssignment Duplicate() {
 			VariableAssignment dup = new VariableAssignment();
-			dup.values = new Dictionary<string, List<int>>();
+			dup.values = new Dictionary<string, List<ValueRange>>();
 			foreach (var pair in values) {
 				// XXX HACK
 				dup.values.Add(pair.Key, pair.Value.ToList());

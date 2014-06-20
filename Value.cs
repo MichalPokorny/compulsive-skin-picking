@@ -14,5 +14,11 @@ namespace CSPS {
 		public override string ToString() {
 			return string.Format("V<{0}>", value);
 		}
+
+		public static implicit operator AlgebraicExpression.ConstantNode(Value self) {
+			return new AlgebraicExpression.ConstantNode(self);
+		}
+
+		// TODO: 9999 overriden ops
 	};
 };

@@ -27,6 +27,11 @@ namespace CSPS {
 				yield break;
 			}
 
+			protected IEnumerable<ConstrainResult> Restrict(Variable variable, Value value) {
+				yield return ConstrainResult.Restrict(variable, value);
+				yield break;
+			}
+
 			protected IEnumerable<ConstrainResult> Nothing {
 				get {
 					yield break;
