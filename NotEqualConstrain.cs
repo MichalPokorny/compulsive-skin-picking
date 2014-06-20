@@ -16,6 +16,12 @@ namespace CSPS {
 
 		public List<ConstrainResult> Propagate(IVariableAssignment assignment, IEnumerable<PropagationTrigger> triggers) {
 			var results = new List<ConstrainResult>();
+
+			if (a == b) {
+				results.Add(ConstrainResult.Failure);
+				return results;
+			}
+
 			foreach (var trigger in triggers) {
 				if (trigger.type == PropagationTrigger.Type.Assign) {
 					if (trigger.variable == a) {
@@ -54,6 +60,10 @@ namespace CSPS {
 
 		public string Identifier {
 			get { return string.Format("[{0} != {1}]", a.Identifier, b.Identifier); }
+		}
+
+		public List<Variable> Dependencies {
+			get { return new List<Variable>() { a, b }; }
 		}
 	}
 }
