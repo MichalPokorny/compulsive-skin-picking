@@ -26,6 +26,10 @@ namespace CSPS {
 				return new List<ConstrainResult>();
 			}
 
+			public override bool Satisfied(IReadonlyValueAssignment assignment) {
+				return func(dependencies.Select(var => assignment[var]).ToArray());
+			}
+
 			public override string Identifier {
 				get {
 					return "<Relational>"; // TODO

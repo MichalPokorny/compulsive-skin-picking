@@ -72,6 +72,10 @@ namespace CSPS {
 				return results;
 			}
 
+			public override bool Satisfied(IReadonlyValueAssignment assignment) {
+				return constrains.All(c => c.Satisfied(assignment));
+			}
+
 			public override List<Variable> Dependencies {
 				get {
 					// TODO: slow and has duplicates

@@ -54,6 +54,10 @@ namespace CSPS {
 				return Nothing;
 			}
 
+			public override bool Satisfied(IReadonlyValueAssignment assignment) {
+				return Value.Equal(assignment[a], assignment[b]);
+			}
+
 			public override string Identifier {
 				get { return string.Format("[{0} == {1}]", a.Identifier, b.Identifier); }
 			}

@@ -55,6 +55,10 @@ namespace CSPS {
 				// TODO: AC with supports
 			}
 
+			public override bool Satisfied(IReadonlyValueAssignment assignment) {
+				return Value.Equal(assignment[c], ab_to_c(assignment[a], assignment[b]));
+			}
+
 			public override string Identifier {
 				get {
 					return string.Format("<{3}({0},{1})={2}>", a.Identifier, b.Identifier, c.Identifier, OperatorName);

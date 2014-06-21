@@ -6,6 +6,7 @@ namespace CSPS {
 		public abstract class AbstractConstrain: IConstrain {
 			public abstract IEnumerable<ConstrainResult> Propagate(IVariableAssignment assignment, IEnumerable<PropagationTrigger> triggers, ref IScratchpad scratchpad);
 			public abstract List<Variable> Dependencies { get; }
+			public abstract bool Satisfied(IReadonlyValueAssignment assignment);
 			public abstract string Identifier { get; }
 
 			protected IEnumerable<ConstrainResult> Failure {

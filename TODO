@@ -1,5 +1,5 @@
 - test functional constrain
-- constrain namespace; constrain implies
+- constrain implies
 - boolean variables
 - boolean constrains with propagation
 - logicka disjunkce splneni constrainu
@@ -10,6 +10,6 @@
 
 - message "zmensuji domenu aby se protnula s timhle rangem"
 
-- algebraic test
-
 - variable ordering: zkouset nejdriv promenne co maji omezenou domenu
+
+- relational constrain test
