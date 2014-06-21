@@ -39,7 +39,7 @@ namespace CSPS {
 			}
 
 			protected void Log(string str, params object[] args) {
-				Console.WriteLine("{0} {1}", Identifier, string.Format(str, args));
+				Debug.WriteLine("{0} {1}", Identifier, string.Format(str, args));
 			}
 		};
 	}

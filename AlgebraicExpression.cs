@@ -102,7 +102,7 @@ namespace CSPS {
 
 			// TODO: cache by value
 			public Variable VisitConstantNode(Value value) {
-				return problem.Variables.AddInteger(value.value, value.value);
+				return problem.Variables.AddInteger(value.value, value.value + 1);
 			}
 
 			public Variable VisitVariableNode(Variable variable) {

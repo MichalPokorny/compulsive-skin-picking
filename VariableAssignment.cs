@@ -31,11 +31,14 @@ namespace CSPS {
 			}
 
 			public void Restrict(Value v) {
+				Debug.WriteLine("Remove {0} from the domain of {1}", v.value, variable.Identifier);
 				foreach (var range in Values) {
 					if (range.Contains(v)) {
 						Values.Remove(range);
+						Debug.WriteLine("-{0}", range);
 						foreach (var newRange in range.SplitAndRemove(v.value)) {
 							Values.Add(newRange);
+							Debug.WriteLine("+{0}", newRange);
 						}
 						return;
 					}
@@ -55,7 +58,7 @@ namespace CSPS {
 						throw new Exception(string.Format("Cannot assign {0} to variable {1}", value.value, variable.Identifier));
 					}
 					Values.Clear();
-					Values.Add(value.value);
+					Values.Add(new ValueRange(value.value));
 				}
 			}
 			public bool Assigned {
@@ -70,6 +73,16 @@ namespace CSPS {
 					}
 				}
 				return false;
+			}
+
+			public IExternalEnumerator<Value> EnumeratePossibleValues() {
+				// SLOW AND STUPID
+				Debug.WriteLine("Enumerating possible values for {0}", variable.Identifier);
+				if (_this.values[variable.Identifier].Count > 0) {
+					return new ValuesEnumerator(_this.values[variable.Identifier].ToList().ToArray());
+				} else {
+					return null;
+				}
 			}
 		}
 
@@ -91,47 +104,56 @@ namespace CSPS {
 			}
 
 			public bool TryProgress(out IExternalEnumerator<Value> next) {
-				if (range + 1 < ranges.Length) {
-					next = new ValuesEnumerator(ranges) {
-						range = range + 1,
-						sampleLength = sampleLength
-					};
-					return true;
-				} else {
-					int r;
-					for (r = 0; r < ranges.Length; r++) {
-						if (ranges[r].AtLeastElements(sampleLength + 1)) {
-							Console.WriteLine("Range {0} has as least {1} elements", r, sampleLength + 1);
-							break;
+				int nextRange = range + 1;
+				do {
+					if (nextRange < ranges.Length) {
+						next = new ValuesEnumerator(ranges) {
+							range = nextRange,
+							sampleLength = sampleLength
+						};
+
+						if (ranges[nextRange].AtLeastElements(sampleLength)) {
+							return true;
+						} else {
+							nextRange++;
+						}
+					} else {
+						int r;
+						for (r = 0; r < ranges.Length; r++) {
+							if (ranges[r].AtLeastElements(sampleLength + 1)) {
+								Debug.WriteLine("Range {0} has as least {1} elements", r, sampleLength + 1);
+								break;
+							}
+						}
+
+						if (r == ranges.Length) {
+							next = null;
+							return false;
+						} else {
+							next = new ValuesEnumerator(ranges) {
+								range = r,
+								sampleLength = sampleLength + 1
+							};
+							return true;
 						}
 					}
-
-					if (r == ranges.Length) {
-						next = null;
-						return false;
-					} else {
-						next = new ValuesEnumerator(ranges) {
-							range = r,
-							sampleLength = sampleLength + 1
-						};
-						return true;
-					}
-				}
+				} while (true);
 			}
 
 			public Value Value {
 				get {
-					Console.WriteLine("Ranges[{0}] (={1}) [{2}]", range, ranges[range], sampleLength - 1);
-					return ranges[range][sampleLength - 1];
+					int index = sampleLength - 1;
+					Debug.WriteLine("range={0} sampleindex={1} ranges.Length={2}", range, index, ranges.Length);
+					Debug.WriteLine("Ranges[{0}] (={1}) [{2}]", range, ranges[range], index);
+					Debug.Write("All ranges:");
+					foreach (var r in ranges) {
+						Debug.Write(" {0}", r);
+					}
+					Debug.WriteLine("");
+					return ranges[range][index];
 				}
 			}
 		};
-
-		public IExternalEnumerator<Value> EnumeratePossibleValues(Variable variable) {
-			// SLOW AND STUPID
-			Console.WriteLine("Enumerating possible values for {0}", variable.Identifier);
-			return new ValuesEnumerator(values[variable.Identifier].ToList().ToArray());
-		}
 
 		// SLOW
 		public IVariableAssignment Duplicate() {

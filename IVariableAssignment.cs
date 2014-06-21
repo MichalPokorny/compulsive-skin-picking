@@ -4,10 +4,10 @@ namespace CSPS {
 		Value Value { get; set; }
 		bool Assigned { get; }
 		bool CanBe(Value v);
+		IExternalEnumerator<Value> EnumeratePossibleValues();
 	}
 
 	public interface IVariableAssignment {
-		IExternalEnumerator<Value> EnumeratePossibleValues(Variable variable);
 		IVariableManipulator this[Variable variable] { get; }
 		IVariableAssignment Duplicate();
 

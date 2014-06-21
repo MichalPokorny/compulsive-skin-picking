@@ -43,7 +43,7 @@ namespace CSPS {
 				}
 				if (assignment[a].Assigned && assignment[b].Assigned) {
 					if (Value.Equal(assignment[a].Value, assignment[b].Value)) {
-						Console.WriteLine("Constrain fail");
+						Debug.WriteLine("Constrain fail");
 						return Failure;
 					} else {
 						results.Add(ConstrainResult.Success);

@@ -33,6 +33,8 @@ namespace CSPS {
 						MONEY
 					)
 				);
+				problem.Constrains.Add(Constrain.NotEqual(S, new AlgebraicExpression.ConstantNode(0).Build(problem)));
+				problem.Constrains.Add(Constrain.NotEqual(M, new AlgebraicExpression.ConstantNode(0).Build(problem)));
 
 				// TODO: dalsi test: maximalizace
 				Solver solver = new Solver();

@@ -10,5 +10,9 @@ namespace CSPS {
 		public static AlgebraicExpression.Node operator+(Variable a, Variable b) {
 			return ((AlgebraicExpression.VariableNode) a) + ((AlgebraicExpression.VariableNode) b);
 		}
+
+		public override string ToString() {
+			return string.Format("Var<{0}>", Identifier);
+		}
 	};
 };

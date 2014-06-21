@@ -16,6 +16,14 @@ namespace CSPS {
 					return Success;
 				}
 
+				if (assignment[a].Assigned && assignment[b].Assigned) {
+					if (Value.Equal(assignment[a].Value, assignment[b].Value)) {
+						return Success;
+					} else {
+						return Failure;
+					}
+				}
+
 				foreach (var trigger in triggers) {
 					switch (trigger.type) {
 						case PropagationTrigger.Type.Assign:
@@ -40,17 +48,10 @@ namespace CSPS {
 							break;
 					}
 				}
-				if (assignment[a].Assigned && assignment[b].Assigned) {
-					if (Value.Equal(assignment[a].Value, assignment[b].Value)) {
-						return Success;
-					} else {
-						return Failure;
-					}
-				} else {
-					// Nothing to do.
-					Log("I don't know what to do.");
-					return Nothing;
-				}
+
+				// Nothing to do.
+				Log("I don't know what to do.");
+				return Nothing;
 			}
 
 			public override string Identifier {

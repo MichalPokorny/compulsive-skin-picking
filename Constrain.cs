@@ -14,17 +14,23 @@ namespace CSPS {
 		}
 
 		public static IConstrain Plus(Variable a, Variable b, Variable sum) {
-			return new Constrains.InvertibleBinary(a, b, sum, (A, B) => new Value(A.value + B.value), (A, Sum) => new Value(Sum.value - A.value), (B, Sum) => new Value(Sum.value - B.value));
+			return new Constrains.InvertibleBinary(a, b, sum, (A, B) => new Value(A.value + B.value), (A, Sum) => new Value(Sum.value - A.value), (B, Sum) => new Value(Sum.value - B.value)) {
+				OperatorName = "+"
+			};
 		}
 
 		public static IConstrain Minus(Variable a, Variable b, Variable diff) {
-			return new Constrains.InvertibleBinary(a, b, diff, (A, B) => new Value(A.value - B.value), (A, Diff) => new Value(A.value - Diff.value), (B, Diff) => new Value(Diff.value + B.value));
+			return new Constrains.InvertibleBinary(a, b, diff, (A, B) => new Value(A.value - B.value), (A, Diff) => new Value(A.value - Diff.value), (B, Diff) => new Value(Diff.value + B.value)) {
+				OperatorName = "-"
+			};
 		}
 
 		public static IConstrain Multiply(Variable a, Variable b, Variable prod) {
 			// TODO: better propagation...
 			return new Constrains.InvertibleBinary(a, b, prod, (A, B) => new Value(A.value * B.value), null, null);
 		}
+
+		// TODO: Mod, Div
 
 		public static IConstrain And(params IConstrain[] constrains) {
 			return new Constrains.And(constrains);

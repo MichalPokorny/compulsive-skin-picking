@@ -8,11 +8,11 @@ namespace CSPS {
 		public int Minimum;
 		public int Maximum;
 
-		public static implicit operator ValueRange(int value) {
-			return new ValueRange() {
-				Minimum = value,
-				Maximum = value
-			};
+		public ValueRange(int value) {
+			MinUnbounded = false;
+			MaxUnbounded = false;
+			Minimum = value;
+			Maximum = value + 1;
 		}
 
 		public IEnumerable<ValueRange> SplitAndRemove(int value) {
@@ -20,23 +20,28 @@ namespace CSPS {
 				throw new Exception("Value not in range");
 			}
 
+			Debug.WriteLine("Remove {0} from {1}", value, this);
 			if (!MinUnbounded && value == Minimum) {
-				if (MaxUnbounded || value + 1 < Maximum) {
+				if (MaxUnbounded || Minimum + 1 < Maximum) {
 					yield return new ValueRange() {
 						MinUnbounded = false,
 						MaxUnbounded = MaxUnbounded,
 						Minimum = value + 1,
 						Maximum = Maximum
 					};
+				} else {
+					Debug.WriteLine("(Empty new set A)");
 				}
 			} else if (!MaxUnbounded && value == Maximum - 1) {
-				if (MinUnbounded || value - 2 > Minimum) {
+				if (MinUnbounded || Maximum - 1 > Minimum) {
 					yield return new ValueRange() {
 						MinUnbounded = MinUnbounded,
 						MaxUnbounded = false,
 						Minimum = Minimum,
-						Maximum = value - 2
+						Maximum = Maximum - 1
 					};
+				} else {
+					Debug.WriteLine("(Empty new set B)");
 				}
 			} else {
 				yield return new ValueRange() {
@@ -60,7 +65,7 @@ namespace CSPS {
 
 		public bool IsSingleton {
 			get {
-				return !MinUnbounded && !MaxUnbounded && Minimum == Maximum;
+				return !MinUnbounded && !MaxUnbounded && Minimum + 1 == Maximum;
 			}
 		}
 

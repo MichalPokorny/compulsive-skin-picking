@@ -9,6 +9,11 @@ namespace CSPS {
 					throw new Exception("Assertion failed");
 				}
 			}
+			/*
+			protected void AssertEqual<T>(T x, T y) {
+				Assert(x == y);
+			}
+			*/
 		}
 	}
 }

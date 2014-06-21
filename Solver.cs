@@ -10,7 +10,7 @@ namespace CSPS {
 			public int ID;
 
 			public void Log(string fmt, params object[] args) {
-				Console.WriteLine("[Asg {0}] {1}", ID, string.Format(fmt, args));
+				Debug.WriteLine("[Asg {0}] {1}", ID, string.Format(fmt, args));
 			}
 
 			public IVariableAssignment Assignment;
@@ -28,6 +28,9 @@ namespace CSPS {
 
 			public void Dump() {
 				Console.WriteLine("Step {0}:", ID);
+				if (VariableChoice != null && ValueChoice != null) {
+					Console.WriteLine("\tWill try to assign {0} to {1}", ValueChoice.Value, VariableChoice.Value);
+				}
 				Console.WriteLine("\tAssignment:");
 				Assignment.Dump();
 			}
@@ -46,42 +49,43 @@ namespace CSPS {
 			}
 
 			public bool NextValueChoice() {
-				bool result = ValueChoice.TryProgress(out ValueChoice);
-				if (result) {
-					Log("Progressed to value {0} into variable {1}.", ValueChoice.Value, VariableChoice.Value.Identifier);
-				} else {
-					Log("Nothing else to assign into {0}.", VariableChoice.Value.Identifier);
-				}
-				return result;
+				// Skip values that are already pruned.
+				do {
+					bool result = ValueChoice.TryProgress(out ValueChoice);
+					if (result) {
+						Log("Progressed to value {0} into variable {1}.", ValueChoice.Value, VariableChoice.Value.Identifier);
+					} else {
+						Log("Nothing else to assign into {0}.", VariableChoice.Value.Identifier);
+						return false;
+					}
+				} while (!Assignment[VariableChoice.Value].CanBe(ValueChoice.Value));
+				return true;
 			}
 
 			public Step Next() {
-				Dump();
+				if (ID % 1000 == 0) {
+					Dump();
+				}
 
+				/*
 				while (Assignment[VariableChoice.Value].Assigned) {
 					Log("Skipping already assigned variable.");
 					if (!VariableChoice.TryProgress(out VariableChoice)) {
 						throw new Exception("Cannot progress to next variable");
 					}
-					ValueChoice = Assignment.EnumeratePossibleValues(VariableChoice.Value);
+					ValueChoice = Assignment[VariableChoice.Value].EnumeratePossibleValues();
 				}
+				*/
+
 				Variable variable = VariableChoice.Value;
 				Value value = ValueChoice.Value;
 
 				Log("Assign: {0} <- {1}", variable.Identifier, value.value);
 
-				List<PropagationTrigger> triggers = new List<PropagationTrigger>();
-				triggers.Add(PropagationTrigger.Assign(variable, value));
-
-				List<PropagationTrigger> nextTriggers = new List<PropagationTrigger>();
-
 				Step next = new Step();
 
 				next.Assignment = Assignment.Duplicate(); // TODO: suboptimal
 				next.Assignment[variable].Value = value;
-				if (VariableChoice.TryProgress(out next.VariableChoice)) {
-					next.ValueChoice = next.Assignment.EnumeratePossibleValues(next.VariableChoice.Value);
-				}
 				//	throw new Exception("Cannot progress further :(");
 				//}
 
@@ -94,64 +98,95 @@ namespace CSPS {
 					next.Scratchpads.Add(pair.Key, pair.Value == null ? null : pair.Value.Duplicate());
 				}
 
+				next.PropagateTriggers(new [] { PropagationTrigger.Assign(variable, value) });
+
+				if (VariableChoice.TryProgress(out next.VariableChoice)) {
+					next.ValueChoice = next.Assignment[next.VariableChoice.Value].EnumeratePossibleValues();
+					if (next.ValueChoice == null) {
+						Log("Next step has no choices for next variable.");
+						next.MarkFailure();
+					}
+				}
+
+				return next;
+			}
+
+			public void PropagateTriggers(IEnumerable<PropagationTrigger> inputTriggers) {
+				List<PropagationTrigger> triggers = inputTriggers.ToList(); // XXX HACK
+				List<PropagationTrigger> nextTriggers = new List<PropagationTrigger>();
+
+				int round = 0;
+
 				// TODO: kdyz se nejaka promenna ostrihala na jenom 1 prvek, tak to taky chci zpropagovat jako Assign
 				while (triggers.Count > 0) {
+					if (round++ > 10) {
+						Debug.doDebug = true;
+						Debug.WriteLine("Round >10!");
+						foreach (var trigger in triggers) {
+							Debug.WriteLine(trigger.ToString());
+						}
+					}
+
 					List<Constrains.IConstrain> solved = new List<Constrains.IConstrain>();
 
 					// TODO: for every *affected* constrain
-					foreach (var constrain in next.Unsolved) {
+					foreach (var constrain in Unsolved) {
+						Debug.WriteLine("Propagate through {0}", constrain.Identifier);
 						// TODO: for the triggers that affect the constrain
 						IScratchpad scratchpad;
-						if (next.Scratchpads.ContainsKey(constrain)) {
-							scratchpad = next.Scratchpads[constrain];
+						if (Scratchpads.ContainsKey(constrain)) {
+							scratchpad = Scratchpads[constrain];
 						} else {
 							scratchpad = null;
 						}
-						foreach (ConstrainResult result in constrain.Propagate(next.Assignment, triggers, ref scratchpad)) {
+						foreach (ConstrainResult result in constrain.Propagate(Assignment, triggers, ref scratchpad)) {
+							Debug.WriteLine("==> {0}", result);
 							switch (result.type) {
 								case ConstrainResult.Type.Failure:
 									Log("Constrain {0} failed.", constrain.Identifier);
-									next.MarkFailure();
-									return next;
+									MarkFailure();
+									return;
 								case ConstrainResult.Type.Success:
 									solved.Add(constrain);
 									break;
 								case ConstrainResult.Type.Restrict:
-									if (next.Assignment[result.variable].CanBe(result.value)) {
+									if (Assignment[result.variable].CanBe(result.value)) {
 										nextTriggers.Add(PropagationTrigger.Restrict(result.variable, result.value));
-										next.Assignment[result.variable].Restrict(result.value);
+										Assignment[result.variable].Restrict(result.value);
 									}
 									break;
 								case ConstrainResult.Type.Assign:
-									if (next.Assignment[result.variable].CanBe(result.value)) {
+									if (Assignment[result.variable].CanBe(result.value)) {
 										nextTriggers.Add(PropagationTrigger.Assign(result.variable, result.value));
-										next.Assignment[result.variable].Value = result.value;
+										Assignment[result.variable].Value = result.value;
 										break;
 									} else {
 										Log("Constrain {0} assigns {1} to {2}, but that's not a possible value.", constrain.Identifier, result.value, result.variable.Identifier);
-										next.MarkFailure();
-										return next;
+										MarkFailure();
+										return;
 									}
 								// TODO: assign trigger
 								default:
 									throw new Exception("Unknown constrain result"); // TODO
 							}
 						}
-						next.Scratchpads[constrain] = scratchpad;
+						Scratchpads[constrain] = scratchpad;
 					}
 
 					foreach (var constrain in solved) {
 						Log("Constrain {0} is now solved", constrain.Identifier);
-						next.MarkConstrainSolved(constrain);
+						MarkConstrainSolved(constrain);
 					}
 
 					triggers = nextTriggers;
 					nextTriggers = new List<PropagationTrigger>();
 				}
-
-				return next;
 			}
 		};
+
+		private void Log(string fmt, params object[] args) {
+			Debug.WriteLine("[Solver} {0}", string.Format(fmt, args));
+		}
 
 		public bool Solve(Problem problem, out IVariableAssignment result) {
 			Stack<Step> stack = new Stack<Step>();
@@ -166,7 +201,9 @@ namespace CSPS {
 				Scratchpads = new Dictionary<Constrains.IConstrain, IScratchpad>()
 			};
 
-			initial.ValueChoice = initial.Assignment.EnumeratePossibleValues(initial.VariableChoice.Value); // TODO: value choice heuristic
+			// TODO: value choice heuristic
+			// TODO: null?
+			initial.ValueChoice = initial.Assignment[initial.VariableChoice.Value].EnumeratePossibleValues();
 
 			// TODO: NC, AC with supports
 			stack.Push(initial);
@@ -182,7 +219,7 @@ namespace CSPS {
 				next.ID = ++ID;
 
 				if (next.Success) {
-					Console.WriteLine("Success!");
+					Log("Success!");
 					result = next.Assignment;
 					return true;
 				} else if (next.Failure) {
@@ -193,11 +230,11 @@ namespace CSPS {
 						} else {
 							if (stack.Count == 1) {
 								// Unsolvable, trying to backtrack up.
-								Console.WriteLine("Fail, unsolvable.");
+								Log("Fail, unsolvable.");
 								result = null;
 								return false;
 							} else {
-								Console.WriteLine("No next value choice. Turning back.");
+								Log("No next value choice. Turning back.");
 								stack.Pop(); // No next value choice. Return back.
 							}
 						}
