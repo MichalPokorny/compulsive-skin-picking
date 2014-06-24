@@ -1,7 +1,5 @@
 - AC
 
-- not constrain
-
 - variable ordering: zkouset nejdriv promenne co maji omezenou domenu
 
 - relational constrain test
@@ -12,3 +10,12 @@
 - branch-and-bound
 
 - divide test
+
+- > < >= <= (vyrobeni boolean variables z continuous variables)
+
+- (value iterator uz nemusi byt tak slozity, protoze mi staci finite domains)
+
+================================
+
+Out of scope:
+- infinite domains
