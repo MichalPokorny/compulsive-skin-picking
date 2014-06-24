@@ -3,40 +3,38 @@ using System.Collections.Generic;
 
 namespace CSPS {
 	public struct ValueRange {
-		public bool MinUnbounded;
-		public bool MaxUnbounded;
 		public int Minimum;
 		public int Maximum;
 
 		public ValueRange(int value) {
-			MinUnbounded = false;
-			MaxUnbounded = false;
 			Minimum = value;
 			Maximum = value + 1;
+		}
+		public ValueRange(int min, int max) {
+			Minimum = min; Maximum = max;
+			if (Minimum >= Maximum) {
+				throw new Exception("Invalid range settings");
+			}
 		}
 
 		public IEnumerable<ValueRange> SplitAndRemove(int value) {
 			if (value < Minimum || value >= Maximum) {
-				throw new Exception("Value not in range");
+				throw new Exception(string.Format("Value {0} not in range {1}", value, this));
 			}
 
 			Debug.WriteLine("Remove {0} from {1}", value, this);
-			if (!MinUnbounded && value == Minimum) {
-				if (MaxUnbounded || Minimum + 1 < Maximum) {
+			if (value == Minimum) {
+				if (Minimum + 1 < Maximum) {
 					yield return new ValueRange() {
-						MinUnbounded = false,
-						MaxUnbounded = MaxUnbounded,
 						Minimum = value + 1,
 						Maximum = Maximum
 					};
 				} else {
 					Debug.WriteLine("(Empty new set A)");
 				}
-			} else if (!MaxUnbounded && value == Maximum - 1) {
-				if (MinUnbounded || Maximum - 1 > Minimum) {
+			} else if (value == Maximum - 1) {
+				if (Maximum - 1 > Minimum) {
 					yield return new ValueRange() {
-						MinUnbounded = MinUnbounded,
-						MaxUnbounded = false,
 						Minimum = Minimum,
 						Maximum = Maximum - 1
 					};
@@ -45,27 +43,23 @@ namespace CSPS {
 				}
 			} else {
 				yield return new ValueRange() {
-					MinUnbounded = MinUnbounded,
-					MaxUnbounded = false,
 					Minimum = Minimum,
 					Maximum = value
 				};
 				yield return new ValueRange() {
-					MinUnbounded = false,
-					MaxUnbounded = MaxUnbounded,
 					Minimum = value + 1,
 					Maximum = Maximum
 				};
 			}
 		}
 
-		public bool Contains(Value v) {
-			return (MinUnbounded || Minimum <= v.value) && (MaxUnbounded || Maximum > v.value);
+		public bool Contains(int v) {
+			return Minimum <= v && Maximum > v;
 		}
 
 		public bool IsSingleton {
 			get {
-				return !MinUnbounded && !MaxUnbounded && Minimum + 1 == Maximum;
+				return Minimum + 1 == Maximum;
 			}
 		}
 
@@ -77,39 +71,30 @@ namespace CSPS {
 		}
 
 		public bool AtLeastElements(int x) {
-			return MinUnbounded || MaxUnbounded || Maximum - Minimum >= x;
+			return Maximum - Minimum >= x;
 		}
 
 		public override string ToString() {
 			if (IsSingleton) {
 				return string.Format("VR<{0}>", Singleton);
 			} else {
-				return string.Format("VR<{0}...{1}>", MinUnbounded ? "-" : Minimum.ToString(), MaxUnbounded ? "-" : Maximum.ToString());
+				return string.Format("VR<{0}...{1}>", Minimum, Maximum);
 			}
 		}
 
-		public Value this[int x] {
+		public int this[int x] {
 			get {
-				int value;
-				if (MinUnbounded) {
-					if (MaxUnbounded) {
-						if (x % 2 == 0) {
-							value = x / 2;
-						} else {
-							value = -(x - 1) / 2;
-						}
-					} else {
-						value = Maximum - 1 - x;
-					}
-				} else {
-					value = Minimum + x;
+				int value = Minimum + x;
+				if (!Contains(value)) {
+					throw new Exception(string.Format("We don't contain {0}, but we're trying to return that!", value));
 				}
+				return value;
+			}
+		}
 
-				Value v = new Value(value);
-				if (!Contains(v)) {
-					throw new Exception(string.Format("We don't contain {0}, but we're trying to return that!", v));
-				}
-				return v;
+		public static ValueRange Boolean {
+			get {
+				return new ValueRange(0, 2);
 			}
 		}
 	}

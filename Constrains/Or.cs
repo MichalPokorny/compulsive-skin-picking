@@ -3,20 +3,20 @@ using System.Collections.Generic;
 
 namespace CSPS {
 	namespace Constrains {
-		public class And: AbstractConstrain {
+		public class Or: AbstractConstrain {
 			private IConstrain[] constrains;
 
-			public And(params IConstrain[] constrains) {
+			public Or(params IConstrain[] constrains) {
 				this.constrains = constrains;
 			}
 
 			private class Scratchpad: IScratchpad {
-				public List<IConstrain> Unsatisfied;
+				public List<IConstrain> Unsatisfiable;
 				public Dictionary<IConstrain, IScratchpad> Scratchpads;
 
 				public IScratchpad Duplicate() {
 					Scratchpad duplicate = new Scratchpad() {
-						Unsatisfied = Unsatisfied.ToList()
+						Unsatisfiable = Unsatisfiable.ToList()
 					};
 					duplicate.Scratchpads = new Dictionary<IConstrain, IScratchpad>();
 					foreach (var pair in Scratchpads) {
@@ -32,7 +32,7 @@ namespace CSPS {
 				if (_scratchpad == null) {
 					scratchpad = new Scratchpad() {
 						Scratchpads = new Dictionary<IConstrain, IScratchpad>(),
-						Unsatisfied = constrains.ToList() /* XXX HACK */
+						Unsatisfiable = constrains.ToList() /* XXX HACK */
 					};
 					_scratchpad = scratchpad;
 				} else {
@@ -40,8 +40,8 @@ namespace CSPS {
 				}
 
 				var results = new List<ConstrainResult>();
-				var satisfied = new List<IConstrain>();
-				foreach (var constrain in scratchpad.Unsatisfied) {
+				var failed = new List<IConstrain>();
+				foreach (var constrain in scratchpad.Unsatisfiable) {
 					IScratchpad innerScratchpad;
 					if (scratchpad.Scratchpads.ContainsKey(constrain)) {
 						innerScratchpad = scratchpad.Scratchpads[constrain];
@@ -50,10 +50,10 @@ namespace CSPS {
 					}
 					foreach (var result in constrain.Propagate(assignment, triggers, ref innerScratchpad)) {
 						if (result.IsFailure) {
+							failed.Add(constrain);
+						} else if (result.IsSuccess) {
 							results.Add(result);
 							break;
-						} else if (result.IsSuccess) {
-							satisfied.Add(constrain);
 						} else {
 							results.Add(result);
 						}
@@ -61,12 +61,12 @@ namespace CSPS {
 					scratchpad.Scratchpads[constrain] = innerScratchpad;
 				}
 
-				foreach (var constrain in satisfied) {
-					scratchpad.Unsatisfied.Remove(constrain);
+				foreach (var constrain in failed) {
+					scratchpad.Unsatisfiable.Remove(constrain);
 				}
 
-				if (scratchpad.Unsatisfied.Count == 0) {
-					results.Add(ConstrainResult.Success);
+				if (scratchpad.Unsatisfiable.Count == constrains.Length) {
+					results.Add(ConstrainResult.Failure);
 				}
 
 				return results;
@@ -89,7 +89,7 @@ namespace CSPS {
 				}
 			}
 
-			public override string Identifier { get { return "<And>"; } }
+			public override string Identifier { get { return "<Or>"; } }
 		}
 	}
 }

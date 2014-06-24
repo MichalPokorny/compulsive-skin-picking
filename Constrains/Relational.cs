@@ -6,9 +6,9 @@ namespace CSPS {
 	namespace Constrains {
 		public class Relational: AbstractConstrain {
 			private Variable[] dependencies;
-			private Func<Value[], bool> func;
+			private Func<int[], bool> func;
 
-			public Relational(Func<Value[], bool> func, params Variable[] dependencies) {
+			public Relational(Func<int[], bool> func, params Variable[] dependencies) {
 				this.func = func;
 				this.dependencies = dependencies;
 			}
@@ -26,8 +26,8 @@ namespace CSPS {
 				return new List<ConstrainResult>();
 			}
 
-			public override bool Satisfied(IReadonlyValueAssignment assignment) {
-				return func(dependencies.Select(var => assignment[var]).ToArray());
+			public override bool Satisfied(IVariableAssignment assignment) {
+				return func(dependencies.Select(var => assignment[var].Value).ToArray());
 			}
 
 			public override string Identifier {

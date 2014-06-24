@@ -30,48 +30,51 @@ namespace CSPS {
 				}
 			}
 
-			public void Restrict(Value v) {
-				Debug.WriteLine("Remove {0} from the domain of {1}", v.value, variable.Identifier);
+			public void Restrict(int v) {
+				Debug.WriteLine("Remove {0} from the domain of {1}", v, variable.Identifier);
 				_this.values[variable.Identifier] = Values.ToList(); // XXX: duplicate to restrict
 				foreach (var range in Values) {
 					if (range.Contains(v)) {
 						Values.Remove(range);
 						Debug.WriteLine("-{0}", range);
-						foreach (var newRange in range.SplitAndRemove(v.value)) {
+						foreach (var newRange in range.SplitAndRemove(v)) {
 							Values.Add(newRange);
 							Debug.WriteLine("+{0}", newRange);
 						}
 						return;
 					}
 				}
-				throw new Exception(string.Format("Cannot remove {0} from domain of {1}, it's not in the domain", v.value, variable.Identifier));
+				throw new Exception(string.Format("Cannot remove {0} from domain of {1}, it's not in the domain", v, variable.Identifier));
 			}
 
-			public Value Value {
+			public int Value {
 				get {
 					if (!Assigned) {
 						throw new Exception(string.Format("No value assigned to {0} yet", variable.Identifier));
 					}
-					return new Value(Values[0].Singleton);
+					return Values[0].Singleton;
 				}
 				set {
 					if (!CanBe(value)) {
-						throw new Exception(string.Format("Cannot assign {0} to variable {1}", value.value, variable.Identifier));
+						throw new Exception(string.Format("Cannot assign {0} to variable {1}", value, variable.Identifier));
 					}
-					/*
-					_this.values[variable.Identifier] = Values.ToList(); // XXX: duplicate to restrict
-					Values.Clear();
-					Values.Add(new ValueRange(value.value));
-					*/
-					_this.values[variable.Identifier] = new List<ValueRange> { new ValueRange(value.value) };
+					_this.values[variable.Identifier] = new List<ValueRange> { new ValueRange(value) };
 				}
 			}
+
+			public bool BoolValue {
+				get {
+					return Value != 0;
+				}
+			}
+
 			public bool Assigned {
 				get {
 					return Values.Count == 1 && Values[0].IsSingleton;
 				}
 			}
-			public bool CanBe(Value value) {
+			public bool CanBe(int value) {
+				// TODO: can be optimized -- ranges are ascending, no?
 				foreach (var range in Values) {
 					if (range.Contains(value)) {
 						return true;
@@ -86,7 +89,7 @@ namespace CSPS {
 				}
 			}
 
-			public IExternalEnumerator<Value> EnumeratePossibleValues() {
+			public IExternalEnumerator<int> EnumeratePossibleValues() {
 				// SLOW AND STUPID
 				Debug.WriteLine("Enumerating possible values for {0}", variable.Identifier);
 				if (HasPossibleValues) {
@@ -103,7 +106,7 @@ namespace CSPS {
 			}
 		}
 
-		private class ValuesEnumerator: IExternalEnumerator<Value> {
+		private class ValuesEnumerator: IExternalEnumerator<int> {
 			private int sampleLength;
 			private int range;
 			private ValueRange[] ranges;
@@ -114,7 +117,7 @@ namespace CSPS {
 				this.sampleLength = 1;
 			}
 
-			public bool TryProgress(out IExternalEnumerator<Value> next) {
+			public bool TryProgress(out IExternalEnumerator<int> next) {
 				int nextRange = range + 1;
 				do {
 					if (nextRange < ranges.Length) {
@@ -151,7 +154,7 @@ namespace CSPS {
 				} while (true);
 			}
 
-			public Value Value {
+			public int Value {
 				get {
 					int index = sampleLength - 1;
 					Debug.WriteLine("range={0} sampleindex={1} ranges.Length={2}", range, index, ranges.Length);

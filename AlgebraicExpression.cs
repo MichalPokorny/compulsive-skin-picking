@@ -1,10 +1,12 @@
 using System;
+using System.Linq;
 
 namespace CSPS {
 	namespace AlgebraicExpression {
 		public interface NodeVisitor<T> {
 			T VisitVariableNode(Variable variable);
-			T VisitConstantNode(Value value);
+			T VisitConstantNode(int value);
+			T VisitUnaryNode(UnaryNode.Type type, Node x);
 			T VisitBinaryNode(BinaryNode.Type type, Node left, Node right);
 		}
 
@@ -28,6 +30,30 @@ namespace CSPS {
 			public static Node operator%(Node left, Node right) {
 				return new BinaryNode(BinaryNode.Type.Modulo, left, right);
 			}
+			public static Node operator&(Node left, Node right) {
+				return new BinaryNode(BinaryNode.Type.And, left, right);
+			}
+			public static Node operator|(Node left, Node right) {
+				return new BinaryNode(BinaryNode.Type.Or, left, right);
+			}
+			public static Node operator|(Node left, Variable right) {
+				return left | ((VariableNode) right);
+			}
+			public static Node operator|(Variable left, Node right) {
+				return ((VariableNode) left) | right;
+			}
+			public static Node operator&(Variable left, Node right) {
+				return ((VariableNode) left) & right;
+			}
+			public static Node operator&(Node left, Variable right) {
+				return left & ((VariableNode) right);
+			}
+			public static Node operator^(Node left, Node right) {
+				return new BinaryNode(BinaryNode.Type.Xor, left, right);
+			}
+			public static Node operator!(Node x) {
+				return new UnaryNode(UnaryNode.Type.Not, x);
+			}
 			public abstract T AcceptVisitor<T>(NodeVisitor<T> visitor);
 			public Variable Build(Problem problem) {
 				return AcceptVisitor(new ExpressorVisitor(problem));
@@ -48,11 +74,8 @@ namespace CSPS {
 		}
 
 		public class ConstantNode: Node {
-			private Value value;
+			private int value;
 			public ConstantNode(int value) {
-				this.value = new Value(value);
-			}
-			public ConstantNode(Value value) {
 				this.value = value;
 			}
 			public override T AcceptVisitor<T>(NodeVisitor<T> visitor) {
@@ -63,9 +86,40 @@ namespace CSPS {
 			}
 		}
 
+		public class UnaryNode: Node {
+			public enum Type {
+				Not
+			};
+			private Type type;
+			private Node x;
+			public UnaryNode(Type type, Node x) {
+				this.type = type; this.x = x;
+			}
+			public override T AcceptVisitor<T>(NodeVisitor<T> visitor) {
+				return visitor.VisitUnaryNode(type, x);
+			}
+			public static Constrains.IConstrain CreateConstrain(Type type, Variable a, Variable y) {
+				switch (type) {
+					case Type.Not:
+						return Constrain.VariableNot(a, y);
+					default:
+						throw new Exception("Unknown type");
+				}
+			}
+			public static ValueRange GetBoundsOnY(Type type, Variable a) {
+				switch (type) {
+					case Type.Not:
+						return ValueRange.Boolean;
+					default:
+						throw new Exception("Unknown type");
+				}
+			}
+		}
+
 		public class BinaryNode: Node {
 			public enum Type {
-				Plus, Minus, Multiply, Divide, Modulo // TODO: and, or, xor
+				Plus, Minus, Multiply, Divide, Modulo,
+				And, Or, Xor
 			};
 			private Type type;
 			private Node left, right;
@@ -75,6 +129,27 @@ namespace CSPS {
 			public override T AcceptVisitor<T>(NodeVisitor<T> visitor) {
 				return visitor.VisitBinaryNode(type, left, right);
 			}
+			public static ValueRange GetBoundsOnC(Type type, Variable a, Variable b) {
+				switch (type) {
+					case Type.Plus:
+						return new ValueRange(a.Range.Minimum + b.Range.Minimum, a.Range.Maximum + b.Range.Maximum);
+					case Type.Minus:
+						return new ValueRange(a.Range.Minimum - b.Range.Maximum, a.Range.Maximum - b.Range.Minimum);
+					// TODO: Type.Divide
+					case Type.Modulo:
+						// TODO: don't be lazy and actually get tight bounds?
+						int magnitude = new [] { Math.Abs(b.Range.Minimum), Math.Abs(b.Range.Maximum) }.Max();
+						return new ValueRange(-magnitude + 1, magnitude);
+					case Type.And:
+						return ValueRange.Boolean;
+					case Type.Or:
+						return ValueRange.Boolean;
+					case Type.Xor:
+						return ValueRange.Boolean;
+					default:
+						throw new Exception("TODO");
+				}
+			}
 			public static Constrains.IConstrain CreateConstrain(Type type, Variable a, Variable b, Variable c) {
 				switch (type) {
 					case Type.Plus:
@@ -83,13 +158,18 @@ namespace CSPS {
 						return Constrain.Minus(a, b, c);
 					case Type.Multiply:
 						return Constrain.Multiply(a, b, c);
+					case Type.Divide:
+						return Constrain.Divide(a, b, c);
+					case Type.Modulo:
+						return Constrain.Modulo(a, b, c);
+					case Type.And:
+						return Constrain.VariableAnd(a, b, c);
+					case Type.Or:
+						return Constrain.VariableOr(a, b, c);
+					case Type.Xor:
+						return Constrain.VariableXor(a, b, c);
 					default:
 						throw new Exception("TODO");
-						/*
-					case Type.Divide:
-					case Type.Modulo:
-						*/
-						// TODO
 				}
 			}
 		}
@@ -101,17 +181,24 @@ namespace CSPS {
 			}
 
 			// TODO: cache by value
-			public Variable VisitConstantNode(Value value) {
-				return problem.Variables.AddInteger(value.value, value.value + 1);
+			public Variable VisitConstantNode(int value) {
+				return problem.Variables.AddInteger(value, value + 1);
 			}
 
 			public Variable VisitVariableNode(Variable variable) {
 				return variable;
 			}
 
+			public Variable VisitUnaryNode(UnaryNode.Type type, Node x) {
+				Variable a = x.AcceptVisitor(this);
+				Variable y = problem.Variables.AddInteger(UnaryNode.GetBoundsOnY(type, a));
+				problem.Constrains.Add(UnaryNode.CreateConstrain(type, a, y));
+				return y;
+			}
+
 			public Variable VisitBinaryNode(BinaryNode.Type type, Node left, Node right) {
 				Variable a = left.AcceptVisitor(this), b = right.AcceptVisitor(this);
-				Variable c = problem.Variables.AddInteger();
+				Variable c = problem.Variables.AddInteger(BinaryNode.GetBoundsOnC(type, a, b));
 				problem.Constrains.Add(BinaryNode.CreateConstrain(type, a, b, c));
 				return c;
 			}

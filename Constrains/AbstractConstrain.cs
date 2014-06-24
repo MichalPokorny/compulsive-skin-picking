@@ -6,7 +6,7 @@ namespace CSPS {
 		public abstract class AbstractConstrain: IConstrain {
 			public abstract IEnumerable<ConstrainResult> Propagate(IVariableAssignment assignment, IEnumerable<PropagationTrigger> triggers, ref IScratchpad scratchpad);
 			public abstract List<Variable> Dependencies { get; }
-			public abstract bool Satisfied(IReadonlyValueAssignment assignment);
+			public abstract bool Satisfied(IVariableAssignment assignment);
 			public abstract string Identifier { get; }
 
 			protected IEnumerable<ConstrainResult> Failure {
@@ -23,12 +23,12 @@ namespace CSPS {
 				}
 			}
 
-			protected IEnumerable<ConstrainResult> Assign(Variable variable, Value value) {
+			protected IEnumerable<ConstrainResult> Assign(Variable variable, int value) {
 				yield return ConstrainResult.Assign(variable, value);
 				yield break;
 			}
 
-			protected IEnumerable<ConstrainResult> Restrict(Variable variable, Value value) {
+			protected IEnumerable<ConstrainResult> Restrict(Variable variable, int value) {
 				yield return ConstrainResult.Restrict(variable, value);
 				yield break;
 			}

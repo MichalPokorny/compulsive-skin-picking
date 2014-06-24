@@ -6,13 +6,13 @@ namespace CSPS {
 
 		public static void Write(string fmt, params object[] args) {
 			if (doDebug) {
-				Console.Write(fmt, args);
+				Console.Write(string.Format(fmt, args));
 			}
 		}
 
 		public static void WriteLine(string fmt, params object[] args) {
 			if (doDebug) {
-				Console.WriteLine(fmt, args);
+				Console.WriteLine(string.Format(fmt, args));
 			}
 		}
 	}

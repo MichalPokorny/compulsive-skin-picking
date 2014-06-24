@@ -32,7 +32,7 @@ namespace CSPS {
 
 				Assert(solver.Solve(problem, out result));
 				foreach (var pair in edges) {
-					Assert(!Value.Equal(result[v[pair[0]]].Value, result[v[pair[1]]].Value));
+					Assert(result[v[pair[0]]].Value != result[v[pair[1]]].Value);
 				}
 			}
 		}

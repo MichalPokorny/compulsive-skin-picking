@@ -1,5 +1,6 @@
 namespace CSPS {
 	public class Variable {
+		public Problem Problem;
 		public string Identifier;
 		public ValueRange Range;
 
@@ -9,6 +10,15 @@ namespace CSPS {
 		}
 		public static AlgebraicExpression.Node operator+(Variable a, Variable b) {
 			return ((AlgebraicExpression.VariableNode) a) + ((AlgebraicExpression.VariableNode) b);
+		}
+		public static AlgebraicExpression.Node operator!(Variable x) {
+			return ! ((AlgebraicExpression.VariableNode) x);
+		}
+		public static AlgebraicExpression.Node operator|(Variable a, Variable b) {
+			return ((AlgebraicExpression.VariableNode) a) | ((AlgebraicExpression.VariableNode) b);
+		}
+		public static AlgebraicExpression.Node operator&(Variable a, Variable b) {
+			return ((AlgebraicExpression.VariableNode) a) & ((AlgebraicExpression.VariableNode) b);
 		}
 
 		public override string ToString() {

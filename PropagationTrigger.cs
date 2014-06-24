@@ -9,13 +9,13 @@ namespace CSPS {
 
 		public Type type;
 		public Variable variable;
-		public Value value;
+		public int value;
 
-		public static PropagationTrigger Restrict(Variable variable, Value value) {
+		public static PropagationTrigger Restrict(Variable variable, int value) {
 			return new PropagationTrigger() { type = Type.Restrict, variable = variable, value = value };
 		}
 
-		public static PropagationTrigger Assign(Variable variable, Value value) {
+		public static PropagationTrigger Assign(Variable variable, int value) {
 			return new PropagationTrigger() { type = Type.Assign, variable = variable, value = value };
 		}
 

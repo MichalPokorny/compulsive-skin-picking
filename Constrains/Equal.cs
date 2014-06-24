@@ -16,14 +16,7 @@ namespace CSPS {
 					return Success;
 				}
 
-				if (assignment[a].Assigned && assignment[b].Assigned) {
-					if (Value.Equal(assignment[a].Value, assignment[b].Value)) {
-						return Success;
-					} else {
-						return Failure;
-					}
-				}
-
+				// TODO: propagate multiple restricts, too
 				foreach (var trigger in triggers) {
 					switch (trigger.type) {
 						case PropagationTrigger.Type.Assign:
@@ -54,12 +47,12 @@ namespace CSPS {
 				return Nothing;
 			}
 
-			public override bool Satisfied(IReadonlyValueAssignment assignment) {
-				return Value.Equal(assignment[a], assignment[b]);
+			public override bool Satisfied(IVariableAssignment assignment) {
+				return assignment[a].Value == assignment[b].Value;
 			}
 
 			public override string Identifier {
-				get { return string.Format("[{0} == {1}]", a.Identifier, b.Identifier); }
+				get { return string.Format("[{0} == {1}]", a, b); }
 			}
 
 			public override List<Variable> Dependencies {

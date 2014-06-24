@@ -1,16 +1,6 @@
 - AC
 
-- test functional constrain
-- constrain implies
-- boolean variables
-- boolean constrains with propagation
-- logicka disjunkce splneni constrainu
-- negate constrain
-- or constrain
-
-- +, -, *, /, and, or, xor
-
-- message "zmensuji domenu aby se protnula s timhle rangem"
+- not constrain
 
 - variable ordering: zkouset nejdriv promenne co maji omezenou domenu
 
@@ -18,3 +8,7 @@
 
 - conflict-directed backjumping
 - 8-queens
+
+- branch-and-bound
+
+- divide test

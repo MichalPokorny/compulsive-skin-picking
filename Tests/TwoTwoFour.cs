@@ -34,8 +34,8 @@ namespace CSPS {
 
 				Assert(solver.Solve(problem, out result));
 				Console.WriteLine("{0} + {0} = {1}",
-					string.Format("{0}{1}{2}", result[T].Value.value, result[W].Value.value, result[O].Value.value),
-					string.Format("{0}{1}{2}{3}", result[F].Value.value, result[O].Value.value, result[U].Value.value, result[R].Value.value)
+					string.Format("{0}{1}{2}", result[T].Value, result[W].Value, result[O].Value),
+					string.Format("{0}{1}{2}{3}", result[F].Value, result[O].Value, result[U].Value, result[R].Value)
 				);
 			}
 		}

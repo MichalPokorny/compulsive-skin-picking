@@ -21,7 +21,7 @@ namespace CSPS {
 				foreach (var trigger in triggers) {
 					if (trigger.type == PropagationTrigger.Type.Assign) {
 						if (trigger.variable == a) {
-							if (assignment[b].Assigned && Value.Equal(assignment[b].Value, trigger.value)) {
+							if (assignment[b].Assigned && assignment[b].Value == trigger.value) {
 								Log("Assigning {0} to A({1}) made it equal B({2})!", trigger.value, a.Identifier, b.Identifier);
 								return Failure;
 							} else {
@@ -31,7 +31,7 @@ namespace CSPS {
 						}
 
 						if (trigger.variable == b) {
-							if (assignment[a].Assigned && Value.Equal(assignment[a].Value, trigger.value)) {
+							if (assignment[a].Assigned && assignment[a].Value == trigger.value) {
 								Log("Assigning {0} to B({1}) made it equal A({2})!", trigger.value, b.Identifier, a.Identifier);
 								return Failure;
 							} else {
@@ -41,19 +41,11 @@ namespace CSPS {
 						}
 					}
 				}
-				if (assignment[a].Assigned && assignment[b].Assigned) {
-					if (Value.Equal(assignment[a].Value, assignment[b].Value)) {
-						Debug.WriteLine("Constrain fail");
-						return Failure;
-					} else {
-						results.Add(ConstrainResult.Success);
-					}
-				}
 				return results;
 			}
 
-			public override bool Satisfied(IReadonlyValueAssignment assignment) {
-				return !Value.Equal(assignment[a], assignment[b]);
+			public override bool Satisfied(IVariableAssignment assignment) {
+				return assignment[a].Value != assignment[b].Value;
 			}
 
 			public override string Identifier {

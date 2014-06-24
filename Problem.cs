@@ -6,10 +6,12 @@ namespace CSPS {
 	public class Problem {
 		public interface IVariables {
 			// TODO implement and test
-			// public Variables[] AddInteger(int minimum, int maximum); // minimum: inclusive, maximum: exclusive
 			Variable[] AddIntegers(int count, int minimum, int maximum, Func<int, string> namingConvention = null); // minimum: inclusive, maximum: exclusive
+			Variable AddInteger(ValueRange range, string name = null);
 			Variable AddInteger(int minimum, int maximum, string name = null);
-			Variable AddInteger(string name = null);
+
+			Variable AddBoolean(string name = null);
+			Variable[] AddBooleans(int count, Func<int, string> namingConvention = null);
 		}
 
 		private VariablesType _Variables;
@@ -21,7 +23,7 @@ namespace CSPS {
 
 		private string GenerateVariableName() {
 			Console.WriteLine("Creating variable number {0}", variables.Count + 1);
-			return string.Format("Var{0}", variables.Count + 1);
+			return string.Format("_{0}", variables.Count + 1);
 		}
 
 		private class VariablesType: IVariables {
@@ -29,29 +31,26 @@ namespace CSPS {
 			public VariablesType(Problem problem) {
 				this.problem = problem;
 			}
-			public Variable AddInteger(string name = null) {
-				Variable variable = new Variable() {
-					Range = new ValueRange() {
-						MinUnbounded = true,
-						MaxUnbounded = true
-					},
-					Identifier = name ?? problem.GenerateVariableName()
-					// TODO: unique names
-				};
+			private void AddVariableInternal(Variable variable) {
+				if (problem.variables.Any(v => v.Identifier == variable.Identifier)) {
+					throw new Exception(string.Format("Variable name {0} is already used.", variable.Identifier));
+				}
 				problem.variables.Add(variable);
+			}
+			public Variable AddInteger(ValueRange range, string name = null) {
+				Variable variable = new Variable() {
+					Problem = problem,
+					Range = range,
+					Identifier = name ?? problem.GenerateVariableName()
+				};
+				AddVariableInternal(variable);
 				return variable;
 			}
 			public Variable AddInteger(int minimum, int maximum, string name = null) {
-				Variable variable = new Variable() {
-					Range = new ValueRange() {
-						Minimum = minimum,
-						Maximum = maximum
-					},
-					Identifier = name ?? problem.GenerateVariableName()
-					// TODO: unique names
-				};
-				problem.variables.Add(variable);
-				return variable;
+				return AddInteger(new ValueRange(minimum, maximum), name);
+			}
+			public Variable AddBoolean(string name = null) {
+				return AddInteger(0, 2, name);
 			}
 			public Variable[] AddIntegers(int count, int minimum, int maximum, Func<int, string> namingConvention = null) {
 				if (count < 0) {
@@ -70,18 +69,21 @@ namespace CSPS {
 					} else {
 						name = namingConvention(i);
 					}
-					// TODO: check uniqueness
 					result[i] = new Variable() {
+						Problem = problem,
 						Identifier = name,
 						Range = {
 							Minimum = minimum,
 							Maximum = maximum
 						}
 					};
-					problem.variables.Add(result[i]);
-					// TODO: unique variable names
+					AddVariableInternal(result[i]);
+					// TODO: not exception-safe
 				}
 				return result;
+			}
+			public Variable[] AddBooleans(int count, Func<int, string> namingConvention = null) {
+				return AddIntegers(count, 0, 2, namingConvention);
 			}
 		}
 

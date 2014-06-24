@@ -3,6 +3,7 @@ using System.Linq;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using CSPS.Constrains;
 
 // TODO: propagate "assign" u vsech, co jsou assignute v prvnim kroku
 
@@ -10,17 +11,17 @@ namespace CSPS {
 	public class Solver {
 		private class Step {
 			public void Log(string fmt, params object[] args) {
-				Debug.WriteLine("[Asg] {1}", string.Format(fmt, args));
+				Debug.WriteLine("[Asg] {0}", string.Format(fmt, args));
 			}
 
 			public IVariableAssignment Assignment;
 			// TODO: generalize?
-			public IExternalEnumerator<Value> ValueChoice;
+			public IExternalEnumerator<int> ValueChoice;
 			public IExternalEnumerator<Variable> VariableChoice;
 
-			public Dictionary<Constrains.IConstrain, IScratchpad> Scratchpads;
+			public Dictionary<IConstrain, IScratchpad> Scratchpads;
 
-			public List<Constrains.IConstrain> Unsolved;
+			public List<IConstrain> Unsolved;
 
 			public bool Success { get { return Unsolved.Count == 0; } }
 
@@ -52,12 +53,12 @@ namespace CSPS {
 			}
 
 			public bool Next(ref Step next) {
-				// Dump();
+				Dump();
 
 				Variable variable = VariableChoice.Value;
-				Value value = ValueChoice.Value;
+				int value = ValueChoice.Value;
 
-				Log("Assign: {0} <- {1}", variable.Identifier, value.value);
+				Log("Assign: {0} <- {1}", variable, value);
 
 				next = new Step();
 
@@ -84,6 +85,24 @@ namespace CSPS {
 				return true;
 			}
 
+			private bool ResolveFullyInstantiatedConstrains() {
+				// TODO: for every *just solved* constrain
+				List<IConstrain> solved = new List<IConstrain>();
+				foreach (var constrain in Unsolved) {
+					if (constrain.Dependencies.All(v => Assignment[v].Assigned)) {
+						if (constrain.Satisfied(Assignment)) {
+							solved.Add(constrain);
+						} else {
+							return false;
+						}
+					}
+				}
+				foreach (var constrain in solved) {
+					MarkConstrainSolved(constrain);
+				}
+				return true;
+			}
+
 			public bool PropagateTriggers(IEnumerable<PropagationTrigger> inputTriggers) {
 				List<PropagationTrigger> triggers = inputTriggers.ToList(); // XXX HACK
 				List<PropagationTrigger> nextTriggers = new List<PropagationTrigger>();
@@ -92,12 +111,15 @@ namespace CSPS {
 
 				// TODO: kdyz se nejaka promenna ostrihala na jenom 1 prvek, tak to taky chci zpropagovat jako Assign
 				while (triggers.Count > 0) {
+					if (!ResolveFullyInstantiatedConstrains()) return false;
+
 					if (round++ > 10) {
 						Debug.doDebug = true;
 						Debug.WriteLine("Round >10!");
 						foreach (var trigger in triggers) {
 							Debug.WriteLine(trigger.ToString());
 						}
+						Thread.Sleep(10);
 					}
 
 					List<Constrains.IConstrain> solved = new List<Constrains.IConstrain>();
@@ -121,6 +143,7 @@ namespace CSPS {
 								case ConstrainResult.Type.Success:
 									solved.Add(constrain);
 									break;
+								// TODO: constrain type "intersect"
 								case ConstrainResult.Type.Restrict:
 									if (Assignment[result.variable].CanBe(result.value)) {
 										nextTriggers.Add(PropagationTrigger.Restrict(result.variable, result.value));
@@ -129,6 +152,10 @@ namespace CSPS {
 										if (!Assignment[result.variable].HasPossibleValues) {
 											Log("Constrain {0} caused {1} to have empty value set", constrain.Identifier, result.variable.Identifier);
 											return false;
+										}
+
+										if (Assignment[result.variable].Assigned) {
+											nextTriggers.Add(PropagationTrigger.Assign(result.variable, Assignment[result.variable].Value));
 										}
 									}
 									break;
@@ -141,7 +168,6 @@ namespace CSPS {
 										Log("Constrain {0} assigns {1} to {2}, but that's not a possible value.", constrain.Identifier, result.value, result.variable.Identifier);
 										return false;
 									}
-								// TODO: assign trigger
 								default:
 									throw new Exception("Unknown constrain result"); // TODO
 							}
@@ -162,14 +188,13 @@ namespace CSPS {
 		};
 
 		private void Log(string fmt, params object[] args) {
-			Debug.WriteLine("[Solver} {0}", string.Format(fmt, args));
+			Debug.WriteLine("[Solver] {0}", string.Format(fmt, args));
 		}
 
 		private Task<IVariableAssignment> SolveAsync(Step step, int depth, CancellationToken cancellationToken) {
 			if (depth >= 3) {
 				return Task.Factory.StartNew(() => {
 					IVariableAssignment result;
-					Console.WriteLine("SolveStepSerial");
 					if (SolveStepSerial(step, out result)) return result;
 					return null;
 				});
@@ -190,11 +215,12 @@ namespace CSPS {
 					if (step.Next(ref nextStep)) {
 						subtasks.Add(SolveAsync(nextStep, depth + 1, cancellationTokenSource.Token).ContinueWith((task) => {
 							if (task.Result != null) {
-								Console.WriteLine("SOLUTION FOUND");
-								task.Result.Dump();
+								Debug.WriteLine("SOLUTION FOUND");
+								if (Debug.doDebug) {
+									task.Result.Dump();
+								}
 								completionSource.TrySetResult(task.Result);
 								subtaskCompletedSource.Cancel();
-								// TODO: cancel all other tasks
 							}
 						}, cancellationTokenSource.Token));
 					}
