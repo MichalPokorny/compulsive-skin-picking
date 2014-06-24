@@ -165,7 +165,16 @@ namespace CSPS {
 			Debug.WriteLine("[Solver} {0}", string.Format(fmt, args));
 		}
 
-		private Task<IVariableAssignment> SolveAsync(Step step, CancellationToken cancellationToken) {
+		private Task<IVariableAssignment> SolveAsync(Step step, int depth, CancellationToken cancellationToken) {
+			if (depth >= 3) {
+				return Task.Factory.StartNew(() => {
+					IVariableAssignment result;
+					Console.WriteLine("SolveStepSerial");
+					if (SolveStepSerial(step, out result)) return result;
+					return null;
+				});
+			}
+
 			if (step.Success) {
 				return Task.FromResult(step.Assignment);
 			}
@@ -179,7 +188,7 @@ namespace CSPS {
 				do {
 					Step nextStep = null;
 					if (step.Next(ref nextStep)) {
-						subtasks.Add(SolveAsync(nextStep, cancellationTokenSource.Token).ContinueWith((task) => {
+						subtasks.Add(SolveAsync(nextStep, depth + 1, cancellationTokenSource.Token).ContinueWith((task) => {
 							if (task.Result != null) {
 								Console.WriteLine("SOLUTION FOUND");
 								task.Result.Dump();
@@ -199,26 +208,10 @@ namespace CSPS {
 			return completionSource.Task;
 		}
 
-		public bool SolveSerial(Problem problem, out IVariableAssignment result) {
+		private bool SolveStepSerial(Step initial, out IVariableAssignment result) {
 			Stack<Step> stack = new Stack<Step>();
 
-			Step initial = BuildInitialStep(problem);
-			/*
-			 * TODO
-			if (!initial.PropagateTriggers(
-				from v in problem.Variables where initial.Assignment[v].Assigned select PropagationTrigger.Assign(v, initial.Assignment[v].Value)
-			)) {
-				Log("Initial propagation failed, the problem has no solution.");
-				result = null;
-				return false;
-			}
-			*/
-
 			stack.Push(initial);
-
-			// TODO: backjumping, backmarking?
-
-			// TODO: paralelizace; kazdy by si musel udrzovat vlastni stack...
 			do {
 				Step step = stack.Peek();
 
@@ -252,6 +245,24 @@ namespace CSPS {
 			} while (true);
 		}
 
+		public bool SolveSerial(Problem problem, out IVariableAssignment result) {
+			return SolveStepSerial(BuildInitialStep(problem), out result);
+			/*
+			 * TODO
+			if (!initial.PropagateTriggers(
+				from v in problem.Variables where initial.Assignment[v].Assigned select PropagationTrigger.Assign(v, initial.Assignment[v].Value)
+			)) {
+				Log("Initial propagation failed, the problem has no solution.");
+				result = null;
+				return false;
+			}
+			*/
+
+			// TODO: backjumping, backmarking?
+
+			// TODO: paralelizace; kazdy by si musel udrzovat vlastni stack...
+		}
+
 		private Step BuildInitialStep(Problem problem) {
 			Step initial = new Step() {
 				Assignment = problem.CreateEmptyAssignment(),
@@ -281,7 +292,7 @@ namespace CSPS {
 			*/
 
 			var source = new CancellationTokenSource();
-			result = SolveAsync(initial, source.Token).Result;
+			result = SolveAsync(initial, 0, source.Token).Result;
 			return result != null;
 
 			// TODO: NC, AC with supports

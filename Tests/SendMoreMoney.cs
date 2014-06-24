@@ -42,10 +42,10 @@ namespace CSPS {
 
 				// Sequential stupid with much copying: 127.29188 s
 				// Parallel stupid with much copying: 150 s
-				// Sequential slightly smarter: 
+				// Parallel stupid with limited depth: 17.45 s
 				Stopwatch.Instrument(() => {
-					// Assert(solver.SolveParallel(problem, out result));
-					Assert(solver.SolveSerial(problem, out result));
+					Assert(solver.SolveParallel(problem, out result));
+					// Assert(solver.SolveSerial(problem, out result));
 					foreach (var variable in v) {
 						Console.WriteLine("{0} <= {1}", variable.Identifier, result[variable].Value);
 					}
