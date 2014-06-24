@@ -1,16 +1,16 @@
 using System;
 using System.Linq;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 
 // TODO: propagate "assign" u vsech, co jsou assignute v prvnim kroku
 
 namespace CSPS {
 	public class Solver {
 		private class Step {
-			public int ID;
-
 			public void Log(string fmt, params object[] args) {
-				Debug.WriteLine("[Asg {0}] {1}", ID, string.Format(fmt, args));
+				Debug.WriteLine("[Asg] {1}", string.Format(fmt, args));
 			}
 
 			public IVariableAssignment Assignment;
@@ -21,13 +21,11 @@ namespace CSPS {
 			public Dictionary<Constrains.IConstrain, IScratchpad> Scratchpads;
 
 			public List<Constrains.IConstrain> Unsolved;
-			public List<Constrains.IConstrain> Solved;
 
-			public bool Failure { get; private set; }
 			public bool Success { get { return Unsolved.Count == 0; } }
 
 			public void Dump() {
-				Console.WriteLine("Step {0}:", ID);
+				Console.WriteLine("Step:");
 				if (VariableChoice != null && ValueChoice != null) {
 					Console.WriteLine("\tWill try to assign {0} to {1}", ValueChoice.Value, VariableChoice.Value);
 				}
@@ -35,17 +33,8 @@ namespace CSPS {
 				Assignment.Dump();
 			}
 
-			public void MarkFailure() {
-				Failure = true;
-			}
-
 			public void MarkConstrainSolved(Constrains.IConstrain constrain) {
 				Unsolved.Remove(constrain);
-				Solved.Add(constrain);
-			}
-
-			public Step() {
-				Failure = false;
 			}
 
 			public bool NextValueChoice() {
@@ -62,56 +51,40 @@ namespace CSPS {
 				return true;
 			}
 
-			public Step Next() {
-				if (ID % 1000 == 0) {
-					Dump();
-				}
-
-				/*
-				while (Assignment[VariableChoice.Value].Assigned) {
-					Log("Skipping already assigned variable.");
-					if (!VariableChoice.TryProgress(out VariableChoice)) {
-						throw new Exception("Cannot progress to next variable");
-					}
-					ValueChoice = Assignment[VariableChoice.Value].EnumeratePossibleValues();
-				}
-				*/
+			public bool Next(ref Step next) {
+				// Dump();
 
 				Variable variable = VariableChoice.Value;
 				Value value = ValueChoice.Value;
 
 				Log("Assign: {0} <- {1}", variable.Identifier, value.value);
 
-				Step next = new Step();
+				next = new Step();
 
 				next.Assignment = Assignment.Duplicate(); // TODO: suboptimal
 				next.Assignment[variable].Value = value;
-				//	throw new Exception("Cannot progress further :(");
-				//}
 
 				// Tohle bude bod paralelizace.
-				next.Unsolved = Unsolved.ToList(); // HACK
-				next.Solved = Solved.ToList(); // HACK
+				next.Unsolved = Unsolved.ToList(); // XXX HACK
 
 				next.Scratchpads = new Dictionary<Constrains.IConstrain, IScratchpad>();
 				foreach (var pair in Scratchpads) {
 					next.Scratchpads.Add(pair.Key, pair.Value == null ? null : pair.Value.Duplicate());
 				}
 
-				next.PropagateTriggers(new [] { PropagationTrigger.Assign(variable, value) });
+				if (!next.PropagateTriggers(new [] { PropagationTrigger.Assign(variable, value) })) {
+					Log("Propagating assignment failed.");
+					return false;
+				}
 
 				if (VariableChoice.TryProgress(out next.VariableChoice)) {
 					next.ValueChoice = next.Assignment[next.VariableChoice.Value].EnumeratePossibleValues();
-					if (next.ValueChoice == null) {
-						Log("Next step has no choices for next variable.");
-						next.MarkFailure();
-					}
 				}
 
-				return next;
+				return true;
 			}
 
-			public void PropagateTriggers(IEnumerable<PropagationTrigger> inputTriggers) {
+			public bool PropagateTriggers(IEnumerable<PropagationTrigger> inputTriggers) {
 				List<PropagationTrigger> triggers = inputTriggers.ToList(); // XXX HACK
 				List<PropagationTrigger> nextTriggers = new List<PropagationTrigger>();
 
@@ -144,8 +117,7 @@ namespace CSPS {
 							switch (result.type) {
 								case ConstrainResult.Type.Failure:
 									Log("Constrain {0} failed.", constrain.Identifier);
-									MarkFailure();
-									return;
+									return false;
 								case ConstrainResult.Type.Success:
 									solved.Add(constrain);
 									break;
@@ -153,6 +125,11 @@ namespace CSPS {
 									if (Assignment[result.variable].CanBe(result.value)) {
 										nextTriggers.Add(PropagationTrigger.Restrict(result.variable, result.value));
 										Assignment[result.variable].Restrict(result.value);
+
+										if (!Assignment[result.variable].HasPossibleValues) {
+											Log("Constrain {0} caused {1} to have empty value set", constrain.Identifier, result.variable.Identifier);
+											return false;
+										}
 									}
 									break;
 								case ConstrainResult.Type.Assign:
@@ -162,8 +139,7 @@ namespace CSPS {
 										break;
 									} else {
 										Log("Constrain {0} assigns {1} to {2}, but that's not a possible value.", constrain.Identifier, result.value, result.variable.Identifier);
-										MarkFailure();
-										return;
+										return false;
 									}
 								// TODO: assign trigger
 								default:
@@ -181,6 +157,7 @@ namespace CSPS {
 					triggers = nextTriggers;
 					nextTriggers = new List<PropagationTrigger>();
 				}
+				return true;
 			}
 		};
 
@@ -188,26 +165,56 @@ namespace CSPS {
 			Debug.WriteLine("[Solver} {0}", string.Format(fmt, args));
 		}
 
-		public bool Solve(Problem problem, out IVariableAssignment result) {
+		private Task<IVariableAssignment> SolveAsync(Step step, CancellationToken cancellationToken) {
+			if (step.Success) {
+				return Task.FromResult(step.Assignment);
+			}
+
+			var completionSource = new TaskCompletionSource<IVariableAssignment>();
+
+			Task.Factory.StartNew(() => {
+				List<Task> subtasks = new List<Task>();
+				var subtaskCompletedSource = new CancellationTokenSource();
+				var cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(subtaskCompletedSource.Token, cancellationToken);
+				do {
+					Step nextStep = null;
+					if (step.Next(ref nextStep)) {
+						subtasks.Add(SolveAsync(nextStep, cancellationTokenSource.Token).ContinueWith((task) => {
+							if (task.Result != null) {
+								Console.WriteLine("SOLUTION FOUND");
+								task.Result.Dump();
+								completionSource.TrySetResult(task.Result);
+								subtaskCompletedSource.Cancel();
+								// TODO: cancel all other tasks
+							}
+						}, cancellationTokenSource.Token));
+					}
+				} while (step.NextValueChoice());
+
+				Task.WhenAll(subtasks).ContinueWith((tasks) => {
+					completionSource.TrySetResult(null);
+				}, cancellationTokenSource.Token);
+			}, cancellationToken);
+
+			return completionSource.Task;
+		}
+
+		public bool SolveSerial(Problem problem, out IVariableAssignment result) {
 			Stack<Step> stack = new Stack<Step>();
 
-			int ID = 0;
-			Step initial = new Step() {
-				ID = ID,
-				Assignment = problem.CreateEmptyAssignment(),
-				Unsolved = problem.AllConstrains(),
-				Solved = new List<Constrains.IConstrain>(), // Empty set: no constrain satisfied so far.
-				VariableChoice = problem.EnumerateVariables(),  // TODO: variable choice heuristic...
-				Scratchpads = new Dictionary<Constrains.IConstrain, IScratchpad>()
-			};
+			Step initial = BuildInitialStep(problem);
+			/*
+			 * TODO
+			if (!initial.PropagateTriggers(
+				from v in problem.Variables where initial.Assignment[v].Assigned select PropagationTrigger.Assign(v, initial.Assignment[v].Value)
+			)) {
+				Log("Initial propagation failed, the problem has no solution.");
+				result = null;
+				return false;
+			}
+			*/
 
-			// TODO: value choice heuristic
-			// TODO: null?
-			initial.ValueChoice = initial.Assignment[initial.VariableChoice.Value].EnumeratePossibleValues();
-
-			// TODO: NC, AC with supports
 			stack.Push(initial);
-
 
 			// TODO: backjumping, backmarking?
 
@@ -215,14 +222,8 @@ namespace CSPS {
 			do {
 				Step step = stack.Peek();
 
-				Step next = step.Next();
-				next.ID = ++ID;
-
-				if (next.Success) {
-					Log("Success!");
-					result = next.Assignment;
-					return true;
-				} else if (next.Failure) {
+				Step next = null;
+				if (!step.Next(ref next)) {
 					do {
 						if (stack.Peek().NextValueChoice()) {
 							// OK
@@ -240,9 +241,54 @@ namespace CSPS {
 						}
 					} while (true);
 				} else {
-					stack.Push(next);
+					if (next.Success) {
+						Log("Success!");
+						result = next.Assignment;
+						return true;
+					} else {
+						stack.Push(next);
+					}
 				}
 			} while (true);
+		}
+
+		private Step BuildInitialStep(Problem problem) {
+			Step initial = new Step() {
+				Assignment = problem.CreateEmptyAssignment(),
+				Unsolved = problem.AllConstrains(),
+				VariableChoice = problem.EnumerateVariables(),  // TODO: variable choice heuristic...
+				Scratchpads = new Dictionary<Constrains.IConstrain, IScratchpad>()
+			};
+			initial.ValueChoice = initial.Assignment[initial.VariableChoice.Value].EnumeratePossibleValues();
+			return initial;
+		}
+
+		public bool SolveParallel(Problem problem, out IVariableAssignment result) {
+			Step initial = BuildInitialStep(problem);
+
+			// TODO: value choice heuristic
+			// TODO: null?
+
+			/*
+			 * TODO
+			if (!initial.PropagateTriggers(
+				from v in problem.Variables where initial.Assignment[v].Assigned select PropagationTrigger.Assign(v, initial.Assignment[v].Value)
+			)) {
+				Log("Initial propagation failed, the problem has no solution.");
+				result = null;
+				return false;
+			}
+			*/
+
+			var source = new CancellationTokenSource();
+			result = SolveAsync(initial, source.Token).Result;
+			return result != null;
+
+			// TODO: NC, AC with supports
+		}
+
+		public bool Solve(Problem problem, out IVariableAssignment result) {
+			return SolveSerial(problem, out result);
 		}
 	}
 }

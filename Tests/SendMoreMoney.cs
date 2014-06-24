@@ -40,10 +40,18 @@ namespace CSPS {
 				Solver solver = new Solver();
 				IVariableAssignment result;
 
-				Assert(solver.Solve(problem, out result));
-				foreach (var variable in v) {
-					Console.WriteLine("{0} <= {1}", variable.Identifier, result[variable].Value);
-				}
+				// Sequential stupid with much copying: 127.29188 s
+				// Parallel stupid with much copying: 150 s
+				// Sequential slightly smarter: 
+				Stopwatch.Instrument(() => {
+					// Assert(solver.SolveParallel(problem, out result));
+					Assert(solver.SolveSerial(problem, out result));
+					foreach (var variable in v) {
+						Console.WriteLine("{0} <= {1}", variable.Identifier, result[variable].Value);
+					}
+				}, (span) => {
+					Console.WriteLine("Solved SEND+MORE=MONEY in {0} seconds", span.TotalSeconds);
+				});
 			}
 		}
 	}

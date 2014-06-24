@@ -6,7 +6,7 @@ namespace CSPS {
 			new Tests.ValueRangeTest().Run();
 			new Tests.ThreeColorsInGraph().Run();
 			new Tests.TwoTwoFour().Run();
-			// new Tests.SendMoreMoney().Run();
+			new Tests.SendMoreMoney().Run();
 		}
 	}
 }

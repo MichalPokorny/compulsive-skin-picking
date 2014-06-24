@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 namespace CSPS {
@@ -8,6 +9,7 @@ namespace CSPS {
 
 	class ArcConsistency {
 		public IEnumerable<CanceledVariableValue> Run(VariableAssignment assignment, Constrains.IConstrain arc, ref IScratchpad scratchpad) {
+			throw new Exception("TODO");
 		}
 	}
 }

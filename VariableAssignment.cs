@@ -32,6 +32,7 @@ namespace CSPS {
 
 			public void Restrict(Value v) {
 				Debug.WriteLine("Remove {0} from the domain of {1}", v.value, variable.Identifier);
+				_this.values[variable.Identifier] = Values.ToList(); // XXX: duplicate to restrict
 				foreach (var range in Values) {
 					if (range.Contains(v)) {
 						Values.Remove(range);
@@ -57,8 +58,12 @@ namespace CSPS {
 					if (!CanBe(value)) {
 						throw new Exception(string.Format("Cannot assign {0} to variable {1}", value.value, variable.Identifier));
 					}
+					/*
+					_this.values[variable.Identifier] = Values.ToList(); // XXX: duplicate to restrict
 					Values.Clear();
 					Values.Add(new ValueRange(value.value));
+					*/
+					_this.values[variable.Identifier] = new List<ValueRange> { new ValueRange(value.value) };
 				}
 			}
 			public bool Assigned {
@@ -75,13 +80,19 @@ namespace CSPS {
 				return false;
 			}
 
+			public bool HasPossibleValues {
+				get {
+					return Values.Count > 0;
+				}
+			}
+
 			public IExternalEnumerator<Value> EnumeratePossibleValues() {
 				// SLOW AND STUPID
 				Debug.WriteLine("Enumerating possible values for {0}", variable.Identifier);
-				if (_this.values[variable.Identifier].Count > 0) {
-					return new ValuesEnumerator(_this.values[variable.Identifier].ToList().ToArray());
+				if (HasPossibleValues) {
+					return new ValuesEnumerator(Values.ToArray());// ToList().ToArray()); // XXX HACK
 				} else {
-					return null;
+					throw new Exception("No possible values");
 				}
 			}
 		}
@@ -161,7 +172,7 @@ namespace CSPS {
 			dup.values = new Dictionary<string, List<ValueRange>>();
 			foreach (var pair in values) {
 				// XXX HACK
-				dup.values.Add(pair.Key, pair.Value.ToList());
+				dup.values.Add(pair.Key, pair.Value);// .ToList());
 			}
 			return dup;
 		}

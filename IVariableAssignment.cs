@@ -3,6 +3,7 @@ namespace CSPS {
 		void Restrict(Value v);
 		Value Value { get; set; }
 		bool Assigned { get; }
+		bool HasPossibleValues { get; }
 		bool CanBe(Value v);
 		IExternalEnumerator<Value> EnumeratePossibleValues();
 	}

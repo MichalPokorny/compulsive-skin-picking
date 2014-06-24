@@ -1,3 +1,5 @@
+- AC
+
 - test functional constrain
 - constrain implies
 - boolean variables
@@ -13,3 +15,6 @@
 - variable ordering: zkouset nejdriv promenne co maji omezenou domenu
 
 - relational constrain test
+
+- conflict-directed backjumping
+- 8-queens
