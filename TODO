@@ -11,8 +11,6 @@
 
 - divide test
 
-- > < >= <= (vyrobeni boolean variables z continuous variables)
-
 - (value iterator uz nemusi byt tak slozity, protoze mi staci finite domains)
 
 ================================

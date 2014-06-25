@@ -1,9 +1,11 @@
 using System;
+using System.Linq;
 
 namespace CSPS {
 	namespace Tests {
 		public class SendMoreMoney: Test {
 			public override void Run() {
+				Console.WriteLine("Testing SEND+MORE=MONEY...");
 				Problem problem = new Problem();
 
 				//   S E N D
@@ -46,9 +48,8 @@ namespace CSPS {
 				Stopwatch.Instrument(() => {
 					Assert(solver.SolveParallel(problem, out result));
 					// Assert(solver.SolveSerial(problem, out result));
-					foreach (var variable in v) {
-						Console.WriteLine("{0} <= {1}", variable.Identifier, result[variable].Value);
-					}
+					Console.WriteLine(string.Join(" ", v.Select(variable => string.Format("{0}={1}", variable.Identifier, result[variable].Value))));
+					Console.WriteLine("{0}+{1}={2}", result[SEND].Value, result[MORE].Value, result[MONEY].Value);
 				}, (span) => {
 					Console.WriteLine("Solved SEND+MORE=MONEY in {0} seconds", span.TotalSeconds);
 				});

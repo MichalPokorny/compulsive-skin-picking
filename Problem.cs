@@ -22,7 +22,7 @@ namespace CSPS {
 		}
 
 		private string GenerateVariableName() {
-			Console.WriteLine("Creating variable number {0}", variables.Count + 1);
+			Debug.WriteLine("Creating variable number {0}", variables.Count + 1);
 			return string.Format("_{0}", variables.Count + 1);
 		}
 

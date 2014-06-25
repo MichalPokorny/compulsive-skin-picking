@@ -20,7 +20,9 @@ namespace CSPS {
 			public static Node operator-(Node left, Node right) {
 				return new BinaryNode(BinaryNode.Type.Minus, left, right);
 			}
-			// TODO: unary minus?
+			public static Node operator-(Node left) {
+				return new BinaryNode(BinaryNode.Type.Multiply, (ConstantNode)(-1), left);
+			}
 			public static Node operator*(Node left, Node right) {
 				return new BinaryNode(BinaryNode.Type.Multiply, left, right);
 			}
@@ -54,7 +56,26 @@ namespace CSPS {
 			public static Node operator!(Node x) {
 				return new UnaryNode(UnaryNode.Type.Not, x);
 			}
+
+			public static Node Implies(Node left, Node right) {
+				return new BinaryNode(BinaryNode.Type.Implies, left, right);
+			}
+
+			public static Node GreaterThan(Node left, Node right) {
+				return new BinaryNode(BinaryNode.Type.GreaterThan, left, right);
+			}
+			public static Node GreaterThanOrEqualTo(Node left, Node right) {
+				return new BinaryNode(BinaryNode.Type.GreaterThanOrEqualTo, left, right);
+			}
+			public static Node LessThan(Node left, Node right) {
+				return new BinaryNode(BinaryNode.Type.GreaterThan, right, left);
+			}
+			public static Node LessThanOrEqualTo(Node left, Node right) {
+				return new BinaryNode(BinaryNode.Type.GreaterThanOrEqualTo, right, left);
+			}
+
 			public abstract T AcceptVisitor<T>(NodeVisitor<T> visitor);
+
 			public Variable Build(Problem problem) {
 				return AcceptVisitor(new ExpressorVisitor(problem));
 			}
@@ -103,7 +124,7 @@ namespace CSPS {
 					case Type.Not:
 						return Constrain.VariableNot(a, y);
 					default:
-						throw new Exception("Unknown type");
+						throw new NotImplementedException(string.Format("Unary node type {0} not implemented", type));
 				}
 			}
 			public static ValueRange GetBoundsOnY(Type type, Variable a) {
@@ -111,7 +132,7 @@ namespace CSPS {
 					case Type.Not:
 						return ValueRange.Boolean;
 					default:
-						throw new Exception("Unknown type");
+						throw new NotImplementedException(string.Format("Unary node type {0} not implemented", type));
 				}
 			}
 		}
@@ -119,7 +140,9 @@ namespace CSPS {
 		public class BinaryNode: Node {
 			public enum Type {
 				Plus, Minus, Multiply, Divide, Modulo,
-				And, Or, Xor
+				And, Or, Xor, Implies,
+
+				GreaterThan, GreaterThanOrEqualTo
 			};
 			private Type type;
 			private Node left, right;
@@ -129,25 +152,42 @@ namespace CSPS {
 			public override T AcceptVisitor<T>(NodeVisitor<T> visitor) {
 				return visitor.VisitBinaryNode(type, left, right);
 			}
-			public static ValueRange GetBoundsOnC(Type type, Variable a, Variable b) {
+			public static ValueRange GetBoundsOnY(Type type, Variable a, Variable b) {
 				switch (type) {
 					case Type.Plus:
 						return new ValueRange(a.Range.Minimum + b.Range.Minimum, a.Range.Maximum + b.Range.Maximum);
 					case Type.Minus:
 						return new ValueRange(a.Range.Minimum - b.Range.Maximum, a.Range.Maximum - b.Range.Minimum);
-					// TODO: Type.Divide
-					case Type.Modulo:
+					case Type.Divide: {
+						// TODO: don't be lazy and actually get tight bounds?
+						int magnitude = new [] { Math.Abs(a.Range.Minimum), Math.Abs(a.Range.Maximum) }.Max();
+						return new ValueRange(-magnitude, magnitude);
+					}
+					case Type.Modulo: {
 						// TODO: don't be lazy and actually get tight bounds?
 						int magnitude = new [] { Math.Abs(b.Range.Minimum), Math.Abs(b.Range.Maximum) }.Max();
 						return new ValueRange(-magnitude + 1, magnitude);
+					}
+					case Type.Multiply: {
+						// TODO: don't be lazy and actually get tight bounds?
+						int magnitude1 = new [] { Math.Abs(a.Range.Minimum), Math.Abs(a.Range.Maximum) }.Max();
+						int magnitude2 = new [] { Math.Abs(b.Range.Minimum), Math.Abs(b.Range.Maximum) }.Max();
+						return new ValueRange(-magnitude1 * magnitude2, magnitude1 * magnitude2);
+					}
 					case Type.And:
 						return ValueRange.Boolean;
 					case Type.Or:
 						return ValueRange.Boolean;
 					case Type.Xor:
 						return ValueRange.Boolean;
+					case Type.Implies:
+						return ValueRange.Boolean;
+					case Type.GreaterThan:
+						return ValueRange.Boolean;
+					case Type.GreaterThanOrEqualTo:
+						return ValueRange.Boolean;
 					default:
-						throw new Exception("TODO");
+						throw new NotImplementedException(string.Format("Binary node type {0} not implemented", type));
 				}
 			}
 			public static Constrains.IConstrain CreateConstrain(Type type, Variable a, Variable b, Variable c) {
@@ -168,8 +208,14 @@ namespace CSPS {
 						return Constrain.VariableOr(a, b, c);
 					case Type.Xor:
 						return Constrain.VariableXor(a, b, c);
+					case Type.Implies:
+						return Constrain.VariableImplies(a, b, c);
+					case Type.GreaterThan:
+						return Constrain.VariableGreaterThan(a, b, c);
+					case Type.GreaterThanOrEqualTo:
+						return Constrain.VariableGreaterThanOrEqualTo(a, b, c);
 					default:
-						throw new Exception("TODO");
+						throw new NotImplementedException(string.Format("Binary node type {0} not implemented", type));
 				}
 			}
 		}
@@ -180,7 +226,7 @@ namespace CSPS {
 				this.problem = problem;
 			}
 
-			// TODO: cache by value
+			// TODO: cache by value?
 			public Variable VisitConstantNode(int value) {
 				return problem.Variables.AddInteger(value, value + 1);
 			}
@@ -198,7 +244,7 @@ namespace CSPS {
 
 			public Variable VisitBinaryNode(BinaryNode.Type type, Node left, Node right) {
 				Variable a = left.AcceptVisitor(this), b = right.AcceptVisitor(this);
-				Variable c = problem.Variables.AddInteger(BinaryNode.GetBoundsOnC(type, a, b));
+				Variable c = problem.Variables.AddInteger(BinaryNode.GetBoundsOnY(type, a, b));
 				problem.Constrains.Add(BinaryNode.CreateConstrain(type, a, b, c));
 				return c;
 			}

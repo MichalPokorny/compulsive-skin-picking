@@ -1,7 +1,10 @@
+using System;
+
 namespace CSPS {
 	namespace Tests {
 		public class ThreeColorsInGraph: Test {
 			public override void Run() {
+				Console.WriteLine("Testing 3-colorable graph...");
 				Problem problem = new Problem();
 
 				// 6 integers, 0 <= variables[i] < 3
@@ -34,6 +37,7 @@ namespace CSPS {
 				foreach (var pair in edges) {
 					Assert(result[v[pair[0]]].Value != result[v[pair[1]]].Value);
 				}
+				Console.WriteLine("3-colorable graph test finished");
 			}
 		}
 	}

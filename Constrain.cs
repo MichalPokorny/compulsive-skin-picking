@@ -1,3 +1,4 @@
+using System;
 using CSPS.Constrains;
 using System.Collections.Generic;
 using System.Linq;
@@ -72,11 +73,32 @@ namespace CSPS {
 
 		public static IConstrain VariableXor(Variable a, Variable b, Variable y) {
 			// TODO: better propagation...
-			return new Constrains.Relational((vars) => {
-				int A = vars[0], B = vars[1], Y = vars[2];
-				return (A != 0) ^ (B != 0) == (Y != 0);
-			}, new [] { a, b, y });
+			return BinaryFunctional((A, B) => {
+				return ((A != 0) ^ (B != 0)) ? 1 : 0;
+			}, a, b, y);
 		}
+
+		public static IConstrain VariableGreaterThan(Variable a, Variable b, Variable y) {
+			// TODO: better propagation
+			return BinaryFunctional((A, B) => {
+				return (A > B) ? 1 : 0;
+			}, a, b, y);
+		}
+
+		public static IConstrain VariableGreaterThanOrEqualTo(Variable a, Variable b, Variable y) {
+			// TODO: better propagation
+			return BinaryFunctional((A, B) => {
+				return (A >= B) ? 1 : 0;
+			}, a, b, y);
+		}
+
+		public static IConstrain VariableImplies(Variable a, Variable b, Variable y) {
+			// TODO: better propagation...
+			return BinaryFunctional((A, B) => {
+				return (A != 0 && B == 0) ? 0 : 1;
+			}, a, b, y);
+		}
+
 
 		public static IConstrain AllDifferent(params Variable[] variables) {
 			// TODO: more effective all-different constrain?
@@ -85,16 +107,16 @@ namespace CSPS {
 			);
 		}
 
-		public static IConstrain Implies(Variable a, Variable b) {
-			// TODO: better propagation...
-			return new Constrains.Relational((vars) => {
-				int A = vars[0], B = vars[1];
-				return !(A != 0 && B == 0);
-			}, new [] { a, b });
-		}
-
 		public static IConstrain Truth(Variable x) {
 			return new Constrains.Truth(x);
+		}
+
+		public static IConstrain Relational(Func<int[], bool> func, params Variable[] dependencies) {
+			return new Constrains.Relational(func, dependencies);
+		}
+
+		public static IConstrain BinaryFunctional(Func<int, int, int> func, Variable a, Variable b, Variable y) {
+			return new Constrains.InvertibleBinary(a, b, y, func, null, null);
 		}
 	}
 }

@@ -53,8 +53,6 @@ namespace CSPS {
 			}
 
 			public bool Next(ref Step next) {
-				Dump();
-
 				Variable variable = VariableChoice.Value;
 				int value = ValueChoice.Value;
 
@@ -113,13 +111,12 @@ namespace CSPS {
 				while (triggers.Count > 0) {
 					if (!ResolveFullyInstantiatedConstrains()) return false;
 
-					if (round++ > 10) {
+					if (round++ > 100) {
 						Debug.doDebug = true;
-						Debug.WriteLine("Round >10!");
+						Debug.WriteLine("Round >100!");
 						foreach (var trigger in triggers) {
 							Debug.WriteLine(trigger.ToString());
 						}
-						Thread.Sleep(10);
 					}
 
 					List<Constrains.IConstrain> solved = new List<Constrains.IConstrain>();
