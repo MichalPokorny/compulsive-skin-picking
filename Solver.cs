@@ -14,6 +14,7 @@ namespace CompulsiveSkinPicking {
 				Debug.WriteLine("[Asg] {0}", string.Format(fmt, args));
 			}
 
+			public ISet<Variable> ChangedSinceLastArcCheck;
 			public IVariableAssignment Assignment;
 			// TODO: generalize?
 			public IExternalEnumerator<int> ValueChoice;
@@ -115,7 +116,7 @@ namespace CompulsiveSkinPicking {
 								case ConstrainResult.Type.Restrict:
 									if (Assignment[result.variable].CanBe(result.value)) {
 										nextTriggers.Add(PropagationTrigger.Restrict(result.variable, result.value));
-										Assignment[result.variable].Restrict(result.value);
+										Restrict(result.variable, result.value);
 
 										if (!Assignment[result.variable].HasPossibleValues) {
 											Log("Constrain {0} caused {1} to have empty value set", constrain.Identifier, result.variable.Identifier);
@@ -130,7 +131,7 @@ namespace CompulsiveSkinPicking {
 								case ConstrainResult.Type.Assign:
 									if (Assignment[result.variable].CanBe(result.value)) {
 										nextTriggers.Add(PropagationTrigger.Assign(result.variable, result.value));
-										Assignment[result.variable].Value = result.value;
+										Assign(result.variable, result.value);
 										break;
 									} else {
 										Log("Constrain {0} assigns {1} to {2}, but that's not a possible value.", constrain.Identifier, result.value, result.variable.Identifier);
@@ -152,6 +153,20 @@ namespace CompulsiveSkinPicking {
 					nextTriggers = new List<PropagationTrigger>();
 				}
 				return true;
+			}
+
+			public void Assign(Variable variable, int value) {
+				Assignment[variable].Value = value;
+				if (!ChangedSinceLastArcCheck.Contains(variable)) {
+					ChangedSinceLastArcCheck.Add(variable);
+				}
+			}
+
+			public void Restrict(Variable variable, int value) {
+				Assignment[variable].Restrict(value);
+				if (!ChangedSinceLastArcCheck.Contains(variable)) {
+					ChangedSinceLastArcCheck.Add(variable);
+				}
 			}
 		};
 
@@ -176,6 +191,7 @@ namespace CompulsiveSkinPicking {
 				VariableChoice = constrain.Dependencies.GetExternalEnumerator(),
 				Unsolved = new List<IConstrain>() { constrain },
 				Scratchpads = new Dictionary<Constrains.IConstrain, IScratchpad>(),
+				ChangedSinceLastArcCheck = new HashSet<Variable>(constrain.Dependencies)
 			};
 			foreach (var pair in current.Scratchpads) {
 				duplicate.Scratchpads.Add(pair.Key, pair.Value == null ? null : pair.Value.Duplicate());
@@ -205,7 +221,8 @@ namespace CompulsiveSkinPicking {
 
 			next = new Step() {
 				Assignment = current.Assignment.Duplicate(),
-				Unsolved = current.Unsolved.ToList() // XXX HACK
+				Unsolved = current.Unsolved.ToList(), // XXX HACK
+				ChangedSinceLastArcCheck = new HashSet<Variable>(current.ChangedSinceLastArcCheck)
 			};
 
 			if (current.Supports != null) {
@@ -215,7 +232,7 @@ namespace CompulsiveSkinPicking {
 				}
 			}
 
-			next.Assignment[variable].Value = value;
+			next.Assign(variable, value);
 
 			next.Scratchpads = new Dictionary<Constrains.IConstrain, IScratchpad>();
 			foreach (var pair in current.Scratchpads) {
@@ -341,17 +358,20 @@ namespace CompulsiveSkinPicking {
 
 		// Returns false if any variable gets assigned an empty domain.
 		private bool MakeArcConsistent(Step step) {
+			int round = 0;
 			List<PropagationTrigger> triggers = new List<PropagationTrigger>();
+			var toRemove = new List<int>();
 
-			bool stable = false;
-			List<int> toRemove = new List<int>();
-			List<Variable> touchedVariables = step.Assignment.Variables.ToList();
-			List<Variable> newlyTouchedVariables = new List<Variable>();
-			int round;
-			for (round = 0; !stable; round++) {
-				stable = true;
+			while (step.ChangedSinceLastArcCheck.Count > 0) {
+				triggers.Clear();
 
-				var changedConstrains = from c in step.Unsolved where c.Dependencies.Any(dependency => touchedVariables.Contains(dependency)) select c;
+				List<IConstrain> changedConstrains = (from c in step.Unsolved where c.Dependencies.Any(dependency => step.ChangedSinceLastArcCheck.Contains(dependency)) select c).ToList();
+				/*
+				if (changedConstrains.Count > 0) {
+					Console.WriteLine("{0} touched arcs", changedConstrains.Count);
+				}
+				*/
+				step.ChangedSinceLastArcCheck.Clear();
 
 				foreach (var constrain in changedConstrains) {
 					if (!ArcConsistencyFeasible(step.Assignment, constrain)) {
@@ -372,26 +392,25 @@ namespace CompulsiveSkinPicking {
 						}
 
 						if (toRemove.Count > 0) {
-							stable = false;
 							foreach (var value in toRemove) {
-								step.Assignment[variable].Restrict(value);
+								step.Restrict(variable, value);
 								triggers.Add(PropagationTrigger.Restrict(variable, value));
-							}
-							if (!newlyTouchedVariables.Contains(variable)) {
-								newlyTouchedVariables.Add(variable);
+								if (step.Assignment[variable].Assigned) {
+									triggers.Add(PropagationTrigger.Assign(variable, step.Assignment[variable].Value));
+								}
 							}
 						}
 					}
 				}
-				var tmp = touchedVariables;
-				touchedVariables = newlyTouchedVariables;
-				newlyTouchedVariables = tmp;
-				newlyTouchedVariables.Clear();
-			}
-			// Console.WriteLine("Did {0} rounds of AC", round);
-			Log("Problem is now arc consistent.");
 
-			return step.PropagateTriggers(triggers);
+				if (!step.PropagateTriggers(triggers)) {
+					return false;
+				}
+
+				round++;
+			}
+			Log("Problem is now arc consistent.");
+			return true;
 		}
 
 
@@ -399,11 +418,9 @@ namespace CompulsiveSkinPicking {
 			if (!initial.PropagateTriggers(from v in initial.Assignment.Variables where initial.Assignment[v].Assigned select PropagationTrigger.Assign(v, initial.Assignment[v].Value))) {
 				return false;
 			}
-			/*
 			if (!MakeArcConsistent(initial)) {
 				return false;
 			}
-			*/
 			initial.ValueChoice = initial.Assignment[initial.VariableChoice.Value].EnumeratePossibleValues();
 			return true;
 		}
@@ -429,8 +446,9 @@ namespace CompulsiveSkinPicking {
 				Unsolved = problem.AllConstrains(),
 				VariableChoice = problem.EnumerateVariables(),  // TODO: variable choice heuristic...
 				Scratchpads = new Dictionary<Constrains.IConstrain, IScratchpad>(),
-				Supports = new Dictionary<Tuple<IConstrain, Variable, int>, IVariableAssignment>()
+				Supports = new Dictionary<Tuple<IConstrain, Variable, int>, IVariableAssignment>(),
 			};
+			initial.ChangedSinceLastArcCheck = new HashSet<Variable>(initial.Assignment.Variables);
 			return initial;
 		}
 

@@ -8,8 +8,14 @@ namespace CompulsiveSkinPicking {
 		public static AlgebraicExpression.Node operator*(Variable variable, int node) {
 			return ((AlgebraicExpression.VariableNode) variable) * ((AlgebraicExpression.ConstantNode) node);
 		}
+		public static AlgebraicExpression.Node operator*(Variable a, Variable b) {
+			return ((AlgebraicExpression.VariableNode) a) * ((AlgebraicExpression.VariableNode) b);
+		}
 		public static AlgebraicExpression.Node operator+(Variable a, Variable b) {
 			return ((AlgebraicExpression.VariableNode) a) + ((AlgebraicExpression.VariableNode) b);
+		}
+		public static AlgebraicExpression.Node operator/(Variable variable, int node) {
+			return ((AlgebraicExpression.VariableNode) variable) / ((AlgebraicExpression.ConstantNode) node);
 		}
 		public static AlgebraicExpression.Node operator!(Variable x) {
 			return ! ((AlgebraicExpression.VariableNode) x);

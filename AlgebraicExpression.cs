@@ -17,6 +17,9 @@ namespace CompulsiveSkinPicking {
 			public static Node operator+(Node left, Variable right) {
 				return left + (VariableNode) right;
 			}
+			public static Node operator+(Variable left, Node right) {
+				return (VariableNode) left + right;
+			}
 			public static Node operator-(Node left, Node right) {
 				return new BinaryNode(BinaryNode.Type.Minus, left, right);
 			}
@@ -25,6 +28,12 @@ namespace CompulsiveSkinPicking {
 			}
 			public static Node operator*(Node left, Node right) {
 				return new BinaryNode(BinaryNode.Type.Multiply, left, right);
+			}
+			public static Node operator*(Node left, Variable right) {
+				return left * (VariableNode) right;
+			}
+			public static Node operator*(Variable left, Node right) {
+				return (VariableNode) left * right;
 			}
 			public static Node operator/(Node left, Node right) {
 				return new BinaryNode(BinaryNode.Type.Divide, left, right);
@@ -172,7 +181,8 @@ namespace CompulsiveSkinPicking {
 						// TODO: don't be lazy and actually get tight bounds?
 						int magnitude1 = new [] { Math.Abs(a.Range.Minimum), Math.Abs(a.Range.Maximum) }.Max();
 						int magnitude2 = new [] { Math.Abs(b.Range.Minimum), Math.Abs(b.Range.Maximum) }.Max();
-						return new ValueRange(-magnitude1 * magnitude2, magnitude1 * magnitude2);
+						int mult = magnitude1 * magnitude2;
+						return new ValueRange(-mult, mult);
 					}
 					case Type.And:
 						return ValueRange.Boolean;
