@@ -1,6 +1,6 @@
 using System;
 
-namespace CSPS {
+namespace CompulsiveSkinPicking {
 	static class Debug {
 		public static bool doDebug = false;
 

@@ -1,8 +1,8 @@
 using System;
 
-namespace CSPS {
+namespace CompulsiveSkinPicking {
 	namespace Tests {
-		public class ThreeColorsInGraph: Test {
+		class ThreeColorsInGraph: Test {
 			public override void Run() {
 				Console.WriteLine("Testing 3-colorable graph...");
 				Problem problem = new Problem();

@@ -1,7 +1,7 @@
 using System.Linq;
 using System.Collections.Generic;
 
-namespace CSPS {
+namespace CompulsiveSkinPicking {
 	namespace Constrains {
 		public class And: AbstractConstrain {
 			private IConstrain[] constrains;

@@ -1,6 +1,6 @@
 using System;
 
-namespace CSPS {
+namespace CompulsiveSkinPicking {
 	namespace Tests {
 		static class Stopwatch {
 			public static void Instrument(Action action, Action<TimeSpan> timeSpent) {

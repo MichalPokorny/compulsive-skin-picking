@@ -1,7 +1,7 @@
 using System;
 using System.Linq;
 
-namespace CSPS {
+namespace CompulsiveSkinPicking {
 	namespace AlgebraicExpression {
 		public interface NodeVisitor<T> {
 			T VisitVariableNode(Variable variable);

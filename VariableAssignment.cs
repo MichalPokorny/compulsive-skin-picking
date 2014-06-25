@@ -2,14 +2,20 @@ using System;
 using System.Linq;
 using System.Collections.Generic;
 
-namespace CSPS {
+namespace CompulsiveSkinPicking {
 	public class VariableAssignment: IVariableAssignment {
-		private Dictionary<string, List<ValueRange>> values;
+		private Dictionary<Variable, List<ValueRange>> values;
 
 		public VariableAssignment(IEnumerable<Variable> variables) {
-			values = new Dictionary<string, List<ValueRange>>();
+			values = new Dictionary<Variable, List<ValueRange>>();
 			foreach (var variable in variables) {
-				values[variable.Identifier] = new List<ValueRange>() { variable.Range };
+				values[variable] = new List<ValueRange>() { variable.Range };
+			}
+		}
+
+		public List<Variable> Variables {
+			get {
+				return values.Keys.ToList();
 			}
 		}
 
@@ -26,13 +32,19 @@ namespace CSPS {
 
 			private List<ValueRange> Values {
 				get {
-					return _this.values[variable.Identifier];
+					return _this.values[variable];
+				}
+			}
+
+			public int PossibleValueCount {
+				get {
+					return (from range in Values select range.Size).Sum();
 				}
 			}
 
 			public void Restrict(int v) {
 				Debug.WriteLine("Remove {0} from the domain of {1}", v, variable.Identifier);
-				_this.values[variable.Identifier] = Values.ToList(); // XXX: duplicate to restrict
+				_this.values[variable] = Values.ToList(); // XXX: duplicate to restrict
 				foreach (var range in Values) {
 					if (range.Contains(v)) {
 						Values.Remove(range);
@@ -58,7 +70,7 @@ namespace CSPS {
 					if (!CanBe(value)) {
 						throw new Exception(string.Format("Cannot assign {0} to variable {1}", value, variable.Identifier));
 					}
-					_this.values[variable.Identifier] = new List<ValueRange> { new ValueRange(value) };
+					_this.values[variable] = new List<ValueRange> { new ValueRange(value) };
 				}
 			}
 
@@ -172,7 +184,7 @@ namespace CSPS {
 		// SLOW
 		public IVariableAssignment Duplicate() {
 			VariableAssignment dup = new VariableAssignment();
-			dup.values = new Dictionary<string, List<ValueRange>>();
+			dup.values = new Dictionary<Variable, List<ValueRange>>();
 			foreach (var pair in values) {
 				// XXX HACK
 				dup.values.Add(pair.Key, pair.Value);// .ToList());

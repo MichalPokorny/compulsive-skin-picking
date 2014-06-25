@@ -1,6 +1,6 @@
 using System;
 
-namespace CSPS {
+namespace CompulsiveSkinPicking {
 	namespace Tests {
 		class SAT: Test {
 			public override void Run() {

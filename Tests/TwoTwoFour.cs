@@ -1,8 +1,8 @@
 using System;
 
-namespace CSPS {
+namespace CompulsiveSkinPicking {
 	namespace Tests {
-		public class TwoTwoFour: Test {
+		class TwoTwoFour: Test {
 			public override void Run() {
 				Console.WriteLine("Testing TWO+TWO=FOUR...");
 

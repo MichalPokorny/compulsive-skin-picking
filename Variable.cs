@@ -1,4 +1,4 @@
-namespace CSPS {
+namespace CompulsiveSkinPicking {
 	public class Variable {
 		public Problem Problem;
 		public string Identifier;

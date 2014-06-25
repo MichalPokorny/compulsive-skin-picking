@@ -1,6 +1,6 @@
 using System;
 
-namespace CSPS {
+namespace CompulsiveSkinPicking {
 	public class Program {
 		public static void Main(string[] args) {
 			new Tests.ValueRangeTest().Run();

@@ -1,9 +1,9 @@
 using System;
-using CSPS.Constrains;
+using CompulsiveSkinPicking.Constrains;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace CSPS {
+namespace CompulsiveSkinPicking {
 	public static class Constrain {
 		// TODO: params [] form
 		public static IConstrain NotEqual(Variable a, Variable b) {

@@ -1,6 +1,6 @@
 using System;
 
-namespace CSPS {
+namespace CompulsiveSkinPicking {
 	public struct ConstrainResult {
 		public enum Type {
 			Failure, Success, Restrict, Assign

@@ -1,4 +1,4 @@
-namespace CSPS {
+namespace CompulsiveSkinPicking {
 	namespace Tests {
 		class ValueRangeTest: Test {
 			public override void Run() {

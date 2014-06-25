@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace CSPS {
+namespace CompulsiveSkinPicking {
 	namespace Constrains {
 		class VariableOr: AbstractConstrain {
 			private Variable a, b, y;

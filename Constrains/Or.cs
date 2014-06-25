@@ -1,9 +1,9 @@
 using System.Linq;
 using System.Collections.Generic;
 
-namespace CSPS {
+namespace CompulsiveSkinPicking {
 	namespace Constrains {
-		public class Or: AbstractConstrain {
+		class Or: AbstractConstrain {
 			private IConstrain[] constrains;
 
 			public Or(params IConstrain[] constrains) {

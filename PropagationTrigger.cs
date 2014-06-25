@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace CSPS {
+namespace CompulsiveSkinPicking {
 	public struct PropagationTrigger {
 		public enum Type {
 			Restrict, Assign

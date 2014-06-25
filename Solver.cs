@@ -3,11 +3,11 @@ using System.Linq;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using CSPS.Constrains;
+using CompulsiveSkinPicking.Constrains;
 
 // TODO: propagate "assign" u vsech, co jsou assignute v prvnim kroku
 
-namespace CSPS {
+namespace CompulsiveSkinPicking {
 	public class Solver {
 		private class Step {
 			public void Log(string fmt, params object[] args) {
@@ -24,6 +24,8 @@ namespace CSPS {
 			public List<IConstrain> Unsolved;
 
 			public bool Success { get { return Unsolved.Count == 0; } }
+
+			public Dictionary<Tuple<IConstrain, Variable, int>, IVariableAssignment> Supports;
 
 			public void Dump() {
 				Console.WriteLine("Step:");
@@ -52,38 +54,7 @@ namespace CSPS {
 				return true;
 			}
 
-			public bool Next(ref Step next) {
-				Variable variable = VariableChoice.Value;
-				int value = ValueChoice.Value;
-
-				Log("Assign: {0} <- {1}", variable, value);
-
-				next = new Step();
-
-				next.Assignment = Assignment.Duplicate(); // TODO: suboptimal
-				next.Assignment[variable].Value = value;
-
-				// Tohle bude bod paralelizace.
-				next.Unsolved = Unsolved.ToList(); // XXX HACK
-
-				next.Scratchpads = new Dictionary<Constrains.IConstrain, IScratchpad>();
-				foreach (var pair in Scratchpads) {
-					next.Scratchpads.Add(pair.Key, pair.Value == null ? null : pair.Value.Duplicate());
-				}
-
-				if (!next.PropagateTriggers(new [] { PropagationTrigger.Assign(variable, value) })) {
-					Log("Propagating assignment failed.");
-					return false;
-				}
-
-				if (VariableChoice.TryProgress(out next.VariableChoice)) {
-					next.ValueChoice = next.Assignment[next.VariableChoice.Value].EnumeratePossibleValues();
-				}
-
-				return true;
-			}
-
-			private bool ResolveFullyInstantiatedConstrains() {
+			public bool ResolveFullyInstantiatedConstrains() {
 				// TODO: for every *just solved* constrain
 				List<IConstrain> solved = new List<IConstrain>();
 				foreach (var constrain in Unsolved) {
@@ -188,11 +159,94 @@ namespace CSPS {
 			Debug.WriteLine("[Solver] {0}", string.Format(fmt, args));
 		}
 
+		// TODO: cache results
+		private bool HasArcSupport(Step current, IConstrain constrain, Variable variable, int value) {
+			var key = Tuple.Create(constrain, variable, value);
+			if (current.Supports.ContainsKey(key)) {
+				IVariableAssignment support = current.Supports[key];
+				if (constrain.Dependencies.All(var => current.Assignment[var].CanBe(support[var].Value))) {
+					// Support cache used
+					return true;
+				}
+			}
+
+			// Console.WriteLine("Trying AC for constrain {0}, {1}={2}", constrain.Identifier, variable, value);
+			Step duplicate = new Step() {
+				Assignment = current.Assignment.Duplicate(),
+				VariableChoice = constrain.Dependencies.GetExternalEnumerator(),
+				Unsolved = new List<IConstrain>() { constrain },
+				Scratchpads = new Dictionary<Constrains.IConstrain, IScratchpad>(),
+			};
+			foreach (var pair in current.Scratchpads) {
+				duplicate.Scratchpads.Add(pair.Key, pair.Value == null ? null : pair.Value.Duplicate());
+			}
+			duplicate.Assignment[variable].Value = value;
+			if (!duplicate.PropagateTriggers(new [] { PropagationTrigger.Assign(variable, value) })) {
+				return false;
+			}
+			duplicate.ValueChoice = duplicate.Assignment[duplicate.VariableChoice.Value].EnumeratePossibleValues();
+			IVariableAssignment result;
+			// TODO: take cancellation outside
+			CancellationTokenSource source = new CancellationTokenSource();
+			if (SolveStepSerial(duplicate, out result, source.Token, false)) {
+				current.Supports[key] = result;
+				return true;
+			} else {
+				// Console.WriteLine("AC removed {0}={1} in {2}", variable, value, constrain.Identifier);
+				return false; // Unsupported variable - value pair.
+			}
+		}
+
+		private bool Progress(Step current, out Step next, bool doConsistency = true) {
+			Variable variable = current.VariableChoice.Value;
+			int value = current.ValueChoice.Value;
+
+			Log("Assign: {0} <- {1}", variable, value);
+
+			next = new Step() {
+				Assignment = current.Assignment.Duplicate(),
+				Unsolved = current.Unsolved.ToList() // XXX HACK
+			};
+
+			if (current.Supports != null) {
+				next.Supports = new Dictionary<Tuple<IConstrain, Variable, int>, IVariableAssignment>();
+				foreach (var pair in current.Supports) {
+					next.Supports.Add(pair.Key, pair.Value);
+				}
+			}
+
+			next.Assignment[variable].Value = value;
+
+			next.Scratchpads = new Dictionary<Constrains.IConstrain, IScratchpad>();
+			foreach (var pair in current.Scratchpads) {
+				next.Scratchpads.Add(pair.Key, pair.Value == null ? null : pair.Value.Duplicate());
+			}
+
+			if (!next.ResolveFullyInstantiatedConstrains()) return false;
+			if (doConsistency) {
+				if (!next.PropagateTriggers(new [] { PropagationTrigger.Assign(variable, value) })) {
+					Log("Propagating assignment failed.");
+					return false;
+				}
+
+				if (!MakeArcConsistent(next)) {
+					Log("Failed to make next step arc-consistent.");
+					return false;
+				}
+			}
+
+			if (current.VariableChoice.TryProgress(out next.VariableChoice)) {
+				next.ValueChoice = next.Assignment[next.VariableChoice.Value].EnumeratePossibleValues();
+			}
+
+			return true;
+		}
+
 		private Task<IVariableAssignment> SolveAsync(Step step, int depth, CancellationToken cancellationToken) {
 			if (depth >= 3) {
 				return Task.Factory.StartNew(() => {
 					IVariableAssignment result;
-					if (SolveStepSerial(step, out result)) return result;
+					if (SolveStepSerial(step, out result, cancellationToken)) return result;
 					return null;
 				});
 			}
@@ -209,7 +263,8 @@ namespace CSPS {
 				var cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(subtaskCompletedSource.Token, cancellationToken);
 				do {
 					Step nextStep = null;
-					if (step.Next(ref nextStep)) {
+					if (cancellationTokenSource.Token.IsCancellationRequested) break;
+					if (Progress(step, out nextStep)) {
 						subtasks.Add(SolveAsync(nextStep, depth + 1, cancellationTokenSource.Token).ContinueWith((task) => {
 							if (task.Result != null) {
 								Debug.WriteLine("SOLUTION FOUND");
@@ -231,7 +286,9 @@ namespace CSPS {
 			return completionSource.Task;
 		}
 
-		private bool SolveStepSerial(Step initial, out IVariableAssignment result) {
+		private bool SolveStepSerial(Step initial, out IVariableAssignment result, CancellationToken cancellationToken, bool doConsistency = true) {
+			if (initial == null) throw new NullReferenceException("Null initial step passed");
+
 			Stack<Step> stack = new Stack<Step>();
 
 			stack.Push(initial);
@@ -239,7 +296,7 @@ namespace CSPS {
 				Step step = stack.Peek();
 
 				Step next = null;
-				if (!step.Next(ref next)) {
+				if (!Progress(step, out next, doConsistency)) {
 					do {
 						if (stack.Peek().NextValueChoice()) {
 							// OK
@@ -265,21 +322,101 @@ namespace CSPS {
 						stack.Push(next);
 					}
 				}
-			} while (true);
+			} while (!cancellationToken.IsCancellationRequested);
+			result = null;
+			return false; // Cancelled
+		}
+
+		private bool ArcConsistencyFeasible(IVariableAssignment assignment, IConstrain constrain) {
+			long domainSizeSum = 0;
+			long domainSizeProduct = 1;
+			foreach (var variable in constrain.Dependencies) {
+				int domainSize = assignment[variable].PossibleValueCount;
+				domainSizeSum += domainSize;
+				domainSizeProduct *= domainSize;
+				if (domainSizeSum * domainSizeProduct > 1000000) return false;
+			}
+			return true;
+		}
+
+		// Returns false if any variable gets assigned an empty domain.
+		private bool MakeArcConsistent(Step step) {
+			List<PropagationTrigger> triggers = new List<PropagationTrigger>();
+
+			bool stable = false;
+			List<int> toRemove = new List<int>();
+			List<Variable> touchedVariables = step.Assignment.Variables.ToList();
+			List<Variable> newlyTouchedVariables = new List<Variable>();
+			int round;
+			for (round = 0; !stable; round++) {
+				stable = true;
+
+				var changedConstrains = from c in step.Unsolved where c.Dependencies.Any(dependency => touchedVariables.Contains(dependency)) select c;
+
+				foreach (var constrain in changedConstrains) {
+					if (!ArcConsistencyFeasible(step.Assignment, constrain)) {
+						Log("(Arc consistency of {0} is unfeasible, skipping.)", constrain.Identifier);
+						continue;
+					}
+
+					foreach (var variable in constrain.Dependencies) {
+						{
+							IExternalEnumerator<int> value = step.Assignment[variable].EnumeratePossibleValues();
+							toRemove.Clear();
+							do {
+								if (!HasArcSupport(step, constrain, variable, value.Value)) {
+									Log("Arc consistency: {0}={1} is inconsistent with {2}", variable, value.Value, constrain.Identifier);
+									toRemove.Add(value.Value);
+								}
+							} while (value.TryProgress(out value));
+						}
+
+						if (toRemove.Count > 0) {
+							stable = false;
+							foreach (var value in toRemove) {
+								step.Assignment[variable].Restrict(value);
+								triggers.Add(PropagationTrigger.Restrict(variable, value));
+							}
+							if (!newlyTouchedVariables.Contains(variable)) {
+								newlyTouchedVariables.Add(variable);
+							}
+						}
+					}
+				}
+				var tmp = touchedVariables;
+				touchedVariables = newlyTouchedVariables;
+				newlyTouchedVariables = tmp;
+				newlyTouchedVariables.Clear();
+			}
+			// Console.WriteLine("Did {0} rounds of AC", round);
+			Log("Problem is now arc consistent.");
+
+			return step.PropagateTriggers(triggers);
+		}
+
+
+		private bool PropagateInitialTriggers(Step initial) {
+			if (!initial.PropagateTriggers(from v in initial.Assignment.Variables where initial.Assignment[v].Assigned select PropagationTrigger.Assign(v, initial.Assignment[v].Value))) {
+				return false;
+			}
+			/*
+			if (!MakeArcConsistent(initial)) {
+				return false;
+			}
+			*/
+			initial.ValueChoice = initial.Assignment[initial.VariableChoice.Value].EnumeratePossibleValues();
+			return true;
 		}
 
 		public bool SolveSerial(Problem problem, out IVariableAssignment result) {
-			return SolveStepSerial(BuildInitialStep(problem), out result);
-			/*
-			 * TODO
-			if (!initial.PropagateTriggers(
-				from v in problem.Variables where initial.Assignment[v].Assigned select PropagationTrigger.Assign(v, initial.Assignment[v].Value)
-			)) {
+			Step initial = BuildInitialStep(problem);
+			if (!PropagateInitialTriggers(initial)) {
 				Log("Initial propagation failed, the problem has no solution.");
 				result = null;
 				return false;
 			}
-			*/
+			CancellationTokenSource source = new CancellationTokenSource();
+			return SolveStepSerial(initial, out result, source.Token);
 
 			// TODO: backjumping, backmarking?
 
@@ -291,28 +428,22 @@ namespace CSPS {
 				Assignment = problem.CreateEmptyAssignment(),
 				Unsolved = problem.AllConstrains(),
 				VariableChoice = problem.EnumerateVariables(),  // TODO: variable choice heuristic...
-				Scratchpads = new Dictionary<Constrains.IConstrain, IScratchpad>()
+				Scratchpads = new Dictionary<Constrains.IConstrain, IScratchpad>(),
+				Supports = new Dictionary<Tuple<IConstrain, Variable, int>, IVariableAssignment>()
 			};
-			initial.ValueChoice = initial.Assignment[initial.VariableChoice.Value].EnumeratePossibleValues();
 			return initial;
 		}
 
 		public bool SolveParallel(Problem problem, out IVariableAssignment result) {
 			Step initial = BuildInitialStep(problem);
-
-			// TODO: value choice heuristic
-			// TODO: null?
-
-			/*
-			 * TODO
-			if (!initial.PropagateTriggers(
-				from v in problem.Variables where initial.Assignment[v].Assigned select PropagationTrigger.Assign(v, initial.Assignment[v].Value)
-			)) {
+			if (!PropagateInitialTriggers(initial)) {
 				Log("Initial propagation failed, the problem has no solution.");
 				result = null;
 				return false;
 			}
-			*/
+
+			// TODO: value choice heuristic
+			// TODO: null?
 
 			var source = new CancellationTokenSource();
 			result = SolveAsync(initial, 0, source.Token).Result;

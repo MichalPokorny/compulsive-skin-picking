@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace CSPS {
+namespace CompulsiveSkinPicking {
 	namespace Constrains {
 		// A simple "not equal" constrain.
 		public class NotEqual: AbstractConstrain {

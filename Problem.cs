@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace CSPS {
+namespace CompulsiveSkinPicking {
 	public class Problem {
 		public interface IVariables {
 			// TODO implement and test

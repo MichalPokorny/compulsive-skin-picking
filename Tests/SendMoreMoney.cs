@@ -1,9 +1,9 @@
 using System;
 using System.Linq;
 
-namespace CSPS {
+namespace CompulsiveSkinPicking {
 	namespace Tests {
-		public class SendMoreMoney: Test {
+		class SendMoreMoney: Test {
 			public override void Run() {
 				Console.WriteLine("Testing SEND+MORE=MONEY...");
 				Problem problem = new Problem();

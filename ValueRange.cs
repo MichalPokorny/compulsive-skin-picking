@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace CSPS {
+namespace CompulsiveSkinPicking {
 	public struct ValueRange {
 		public int Minimum;
 		public int Maximum;
@@ -72,6 +72,12 @@ namespace CSPS {
 
 		public bool AtLeastElements(int x) {
 			return Maximum - Minimum >= x;
+		}
+
+		public int Size {
+			get {
+				return Maximum - Minimum;
+			}
 		}
 
 		public override string ToString() {

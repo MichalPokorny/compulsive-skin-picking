@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace CSPS {
+namespace CompulsiveSkinPicking {
 	public class ListTransformationExternalEnumerator<T, C>: IExternalEnumerator<C> {
 		// TODO fuj, neefektivni
 

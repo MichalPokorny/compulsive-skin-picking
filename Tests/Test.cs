@@ -1,8 +1,8 @@
 using System;
 
-namespace CSPS {
+namespace CompulsiveSkinPicking {
 	namespace Tests {
-		public abstract class Test {
+		abstract class Test {
 			public abstract void Run();
 			protected void Assert(bool truth) {
 				if (!truth) {
