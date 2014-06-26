@@ -43,7 +43,10 @@ namespace CompulsiveSkinPicking {
 
 				return Nothing;
 			}
-			public override List<Variable> Dependencies { get { return new List<Variable>() { a, y }; } }
+			protected override IEnumerable<Variable> GetDependencies() {
+				yield return a;
+				yield return y;
+			}
 			public override bool Satisfied(IVariableAssignment assignment) {
 				return (assignment[a].Value != 0) == (assignment[y].Value == 0);
 			}

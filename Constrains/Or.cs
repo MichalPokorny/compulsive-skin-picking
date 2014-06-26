@@ -76,17 +76,14 @@ namespace CompulsiveSkinPicking {
 				return constrains.All(c => c.Satisfied(assignment));
 			}
 
-			public override List<Variable> Dependencies {
-				get {
-					// TODO: slow
-					HashSet<Variable> set = new HashSet<Variable>();
-					foreach (var constrain in constrains) {
-						foreach (var variable in constrain.Dependencies) {
-							set.Add(variable);
-						}
+			protected override IEnumerable<Variable> GetDependencies() {
+				var set = new HashSet<Variable>();
+				foreach (var c in constrains) {
+					foreach (var d in c.Dependencies) {
+						set.Add(d);
 					}
-					return set.ToList();
 				}
+				return set;
 			}
 
 			public override string Identifier { get { return "<Or>"; } }

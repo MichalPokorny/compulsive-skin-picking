@@ -52,8 +52,8 @@ namespace CompulsiveSkinPicking {
 				get { return string.Format("[{0} != {1}]", a.Identifier, b.Identifier); }
 			}
 
-			public override List<Variable> Dependencies {
-				get { return new List<Variable>() { a, b }; }
+			protected override IEnumerable<Variable> GetDependencies() {
+				yield return a; yield return b;
 			}
 		}
 	}

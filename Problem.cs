@@ -92,7 +92,8 @@ namespace CompulsiveSkinPicking {
 		private List<Constrains.IConstrain> constrains;
 
 		public interface IConstrains {
-			void Add(Constrains.IConstrain constrain);
+			void Add(params Constrains.IConstrain[] constrains);
+			void Add(IEnumerable<Constrains.IConstrain> constrains);
 		};
 
 		private ConstrainsType _Constrains;
@@ -102,10 +103,20 @@ namespace CompulsiveSkinPicking {
 				this.problem = problem;
 			}
 
-			public void Add(Constrains.IConstrain constrain) {
-				// TODO check that the variable is from this problem
-				// TODO check uniqueness
-				problem.constrains.Add(constrain);
+			public void Add(params Constrains.IConstrain[] constrains) {
+				foreach (var c in constrains) {
+					// TODO check that the variable is from this problem
+					// TODO check uniqueness
+					problem.constrains.Add(c);
+				}
+			}
+
+			public void Add(IEnumerable<Constrains.IConstrain> constrains) {
+				foreach (var c in constrains) {
+					// TODO check that the variable is from this problem
+					// TODO check uniqueness
+					problem.constrains.Add(c);
+				}
 			}
 		};
 

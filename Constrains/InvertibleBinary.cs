@@ -69,10 +69,8 @@ namespace CompulsiveSkinPicking {
 				get; set;
 			}
 
-			public override List<Variable> Dependencies {
-				get {
-					return new List<Variable>() { a, b, c };
-				}
+			protected override IEnumerable<Variable> GetDependencies() {
+				return new [] { a, b, c };
 			}
 		}
 	}

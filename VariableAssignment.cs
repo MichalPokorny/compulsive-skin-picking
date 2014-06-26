@@ -105,7 +105,7 @@ namespace CompulsiveSkinPicking {
 				// SLOW AND STUPID
 				Debug.WriteLine("Enumerating possible values for {0}", variable.Identifier);
 				if (HasPossibleValues) {
-					return new ValuesEnumerator(Values.ToArray());// ToList().ToArray()); // XXX HACK
+					return new ValuesEnumerator(Values.ToArray()); // XXX HACK
 				} else {
 					throw new Exception("No possible values");
 				}

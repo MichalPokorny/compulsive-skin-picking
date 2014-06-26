@@ -27,6 +27,7 @@ namespace CompulsiveSkinPicking {
 			public bool Success { get { return Unsolved.Count == 0; } }
 
 			public Dictionary<Tuple<IConstrain, Variable, int>, IVariableAssignment> Supports;
+			public Step Parent;
 
 			public void Dump() {
 				Console.WriteLine("Step:");
@@ -157,14 +158,14 @@ namespace CompulsiveSkinPicking {
 
 			public void Assign(Variable variable, int value) {
 				Assignment[variable].Value = value;
-				if (!ChangedSinceLastArcCheck.Contains(variable)) {
+				if (ChangedSinceLastArcCheck != null && !ChangedSinceLastArcCheck.Contains(variable)) {
 					ChangedSinceLastArcCheck.Add(variable);
 				}
 			}
 
 			public void Restrict(Variable variable, int value) {
 				Assignment[variable].Restrict(value);
-				if (!ChangedSinceLastArcCheck.Contains(variable)) {
+				if (ChangedSinceLastArcCheck != null && !ChangedSinceLastArcCheck.Contains(variable)) {
 					ChangedSinceLastArcCheck.Add(variable);
 				}
 			}
@@ -176,7 +177,19 @@ namespace CompulsiveSkinPicking {
 
 		// TODO: cache results
 		private bool HasArcSupport(Step current, IConstrain constrain, Variable variable, int value) {
+			if (current.Supports == null) return true;
 			var key = Tuple.Create(constrain, variable, value);
+			for (Step step = current; step != null; step = step.Parent) {
+				if (step.Supports != null && step.Supports.ContainsKey(key)) {
+					IVariableAssignment support = step.Supports[key];
+					if (constrain.Dependencies.All(var => current.Assignment[var].CanBe(support[var].Value))) {
+						// Support cache used
+						current.Supports[key] = support;
+						return true;
+					}
+				}
+			}
+			/*
 			if (current.Supports.ContainsKey(key)) {
 				IVariableAssignment support = current.Supports[key];
 				if (constrain.Dependencies.All(var => current.Assignment[var].CanBe(support[var].Value))) {
@@ -184,14 +197,17 @@ namespace CompulsiveSkinPicking {
 					return true;
 				}
 			}
+			*/
 
 			// Console.WriteLine("Trying AC for constrain {0}, {1}={2}", constrain.Identifier, variable, value);
 			Step duplicate = new Step() {
 				Assignment = current.Assignment.Duplicate(),
-				VariableChoice = constrain.Dependencies.GetExternalEnumerator(),
+				VariableChoice = constrain.Dependencies.ToList().GetExternalEnumerator(),
 				Unsolved = new List<IConstrain>() { constrain },
 				Scratchpads = new Dictionary<Constrains.IConstrain, IScratchpad>(),
-				ChangedSinceLastArcCheck = new HashSet<Variable>(constrain.Dependencies)
+				ChangedSinceLastArcCheck = new HashSet<Variable>(constrain.Dependencies),
+				Supports = null,
+				Parent = current
 			};
 			foreach (var pair in current.Scratchpads) {
 				duplicate.Scratchpads.Add(pair.Key, pair.Value == null ? null : pair.Value.Duplicate());
@@ -203,8 +219,7 @@ namespace CompulsiveSkinPicking {
 			duplicate.ValueChoice = duplicate.Assignment[duplicate.VariableChoice.Value].EnumeratePossibleValues();
 			IVariableAssignment result;
 			// TODO: take cancellation outside
-			CancellationTokenSource source = new CancellationTokenSource();
-			if (SolveStepSerial(duplicate, out result, source.Token, false)) {
+			if (SolveStepSerial(duplicate, out result, CancellationToken.None, false)) {
 				current.Supports[key] = result;
 				return true;
 			} else {
@@ -222,21 +237,21 @@ namespace CompulsiveSkinPicking {
 			next = new Step() {
 				Assignment = current.Assignment.Duplicate(),
 				Unsolved = current.Unsolved.ToList(), // XXX HACK
-				ChangedSinceLastArcCheck = new HashSet<Variable>(current.ChangedSinceLastArcCheck)
+				Parent = current,
 			};
 
-			if (current.Supports != null) {
+			if (doConsistency) {
+				next.ChangedSinceLastArcCheck = new HashSet<Variable>(current.ChangedSinceLastArcCheck);
 				next.Supports = new Dictionary<Tuple<IConstrain, Variable, int>, IVariableAssignment>();
-				foreach (var pair in current.Supports) {
-					next.Supports.Add(pair.Key, pair.Value);
-				}
 			}
 
 			next.Assign(variable, value);
 
-			next.Scratchpads = new Dictionary<Constrains.IConstrain, IScratchpad>();
-			foreach (var pair in current.Scratchpads) {
-				next.Scratchpads.Add(pair.Key, pair.Value == null ? null : pair.Value.Duplicate());
+			if (doConsistency) {
+				next.Scratchpads = new Dictionary<Constrains.IConstrain, IScratchpad>();
+				foreach (var pair in current.Scratchpads) {
+					next.Scratchpads.Add(pair.Key, pair.Value == null ? null : pair.Value.Duplicate());
+				}
 			}
 
 			if (!next.ResolveFullyInstantiatedConstrains()) return false;
@@ -366,11 +381,9 @@ namespace CompulsiveSkinPicking {
 				triggers.Clear();
 
 				List<IConstrain> changedConstrains = (from c in step.Unsolved where c.Dependencies.Any(dependency => step.ChangedSinceLastArcCheck.Contains(dependency)) select c).ToList();
-				/*
-				if (changedConstrains.Count > 0) {
-					Console.WriteLine("{0} touched arcs", changedConstrains.Count);
-				}
-				*/
+				// if (changedConstrains.Count > 0) {
+				// 	Console.WriteLine("{0}/{1} arcs touched", changedConstrains.Count, step.Unsolved.Count);
+				// }
 				step.ChangedSinceLastArcCheck.Clear();
 
 				foreach (var constrain in changedConstrains) {
@@ -433,7 +446,7 @@ namespace CompulsiveSkinPicking {
 				return false;
 			}
 			CancellationTokenSource source = new CancellationTokenSource();
-			return SolveStepSerial(initial, out result, source.Token);
+			return SolveStepSerial(initial, out result, CancellationToken.None);
 
 			// TODO: backjumping, backmarking?
 
@@ -447,6 +460,7 @@ namespace CompulsiveSkinPicking {
 				VariableChoice = problem.EnumerateVariables(),  // TODO: variable choice heuristic...
 				Scratchpads = new Dictionary<Constrains.IConstrain, IScratchpad>(),
 				Supports = new Dictionary<Tuple<IConstrain, Variable, int>, IVariableAssignment>(),
+				Parent = null
 			};
 			initial.ChangedSinceLastArcCheck = new HashSet<Variable>(initial.Assignment.Variables);
 			return initial;

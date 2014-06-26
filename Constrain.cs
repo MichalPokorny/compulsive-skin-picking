@@ -47,14 +47,6 @@ namespace CompulsiveSkinPicking {
 			}, new [] { a, b, div });
 		}
 
-		public static IConstrain And(params IConstrain[] constrains) {
-			return new Constrains.And(constrains);
-		}
-
-		public static IConstrain And(IEnumerable<IConstrain> constrains) {
-			return And(constrains.ToArray());
-		}
-
 		public static IConstrain Or(params IConstrain[] constrains) {
 			return new Constrains.Or(constrains);
 		}
@@ -100,11 +92,9 @@ namespace CompulsiveSkinPicking {
 		}
 
 
-		public static IConstrain AllDifferent(params Variable[] variables) {
+		public static IEnumerable<IConstrain> AllDifferent(params Variable[] variables) {
 			// TODO: more effective all-different constrain?
-			return And(
-				from a in variables select And(from b in variables where a != b select NotEqual(a, b))
-			);
+			return (from a in variables select (from b in variables where a != b select NotEqual(a, b))).Aggregate((IEnumerable<IConstrain>) new IConstrain[] {}, (a, b) => a.Concat(b));
 		}
 
 		public static IConstrain Truth(Variable x) {

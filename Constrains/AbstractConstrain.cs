@@ -5,7 +5,6 @@ namespace CompulsiveSkinPicking {
 	namespace Constrains {
 		public abstract class AbstractConstrain: IConstrain {
 			public abstract IEnumerable<ConstrainResult> Propagate(IVariableAssignment assignment, IEnumerable<PropagationTrigger> triggers, ref IScratchpad scratchpad);
-			public abstract List<Variable> Dependencies { get; }
 			public abstract bool Satisfied(IVariableAssignment assignment);
 			public abstract string Identifier { get; }
 
@@ -36,6 +35,15 @@ namespace CompulsiveSkinPicking {
 			protected IEnumerable<ConstrainResult> Nothing {
 				get {
 					yield break;
+				}
+			}
+
+			protected abstract IEnumerable<Variable> GetDependencies();
+			private IEnumerable<Variable> _dependencies;
+			public IEnumerable<Variable> Dependencies {
+				get {
+					if (_dependencies == null) _dependencies = GetDependencies();
+					return _dependencies;
 				}
 			}
 

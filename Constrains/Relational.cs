@@ -36,10 +36,8 @@ namespace CompulsiveSkinPicking {
 				}
 			}
 
-			public override List<Variable> Dependencies {
-				get {
-					return dependencies.ToList(); // TODO
-				}
+			protected override IEnumerable<Variable> GetDependencies() {
+				return dependencies;
 			}
 
 			// TODO
