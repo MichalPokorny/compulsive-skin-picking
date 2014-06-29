@@ -44,7 +44,8 @@ namespace CompulsiveSkinPicking {
 				IVariableAssignment result;
 
 				Stopwatch.Instrument(() => {
-					Assert(solver.SolveParallel(problem, out result));
+					// Assert(solver.SolveParallel(problem, out result));
+					Assert(solver.SolveSerial(problem, out result));
 					Console.WriteLine(string.Join(" ", v.Select(variable => string.Format("{0}={1}", variable.Identifier, result[variable].Value))));
 					Console.WriteLine("({0})({1})+{2}={3}+{4}+{5}/3", result[WE].Value, result[WANT].Value, result[SOME].Value, result[MORE].Value, result[MONEY].Value, result[PLEASE].Value);
 				}, (span) => {

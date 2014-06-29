@@ -9,172 +9,11 @@ using CompulsiveSkinPicking.Constrains;
 
 namespace CompulsiveSkinPicking {
 	public class Solver {
-		private class Step {
-			public void Log(string fmt, params object[] args) {
-				Debug.WriteLine("[Asg] {0}", string.Format(fmt, args));
-			}
-
-			public ISet<Variable> ChangedSinceLastArcCheck;
-			public IVariableAssignment Assignment;
-			// TODO: generalize?
-			public IExternalEnumerator<int> ValueChoice;
-			public IExternalEnumerator<Variable> VariableChoice;
-
-			public Dictionary<IConstrain, IScratchpad> Scratchpads;
-
-			public List<IConstrain> Unsolved;
-
-			public bool Success { get { return Unsolved.Count == 0; } }
-
-			public Dictionary<Tuple<IConstrain, Variable, int>, IVariableAssignment> Supports;
-			public Step Parent;
-
-			public void Dump() {
-				Console.WriteLine("Step:");
-				if (VariableChoice != null && ValueChoice != null) {
-					Console.WriteLine("\tWill try to assign {0} to {1}", ValueChoice.Value, VariableChoice.Value);
-				}
-				Console.WriteLine("\tAssignment:");
-				Assignment.Dump();
-			}
-
-			public void MarkConstrainSolved(Constrains.IConstrain constrain) {
-				Unsolved.Remove(constrain);
-			}
-
-			public bool NextValueChoice() {
-				// Skip values that are already pruned.
-				do {
-					bool result = ValueChoice.TryProgress(out ValueChoice);
-					if (result) {
-						Log("Progressed to value {0} into variable {1}.", ValueChoice.Value, VariableChoice.Value.Identifier);
-					} else {
-						Log("Nothing else to assign into {0}.", VariableChoice.Value.Identifier);
-						return false;
-					}
-				} while (!Assignment[VariableChoice.Value].CanBe(ValueChoice.Value));
-				return true;
-			}
-
-			public bool ResolveFullyInstantiatedConstrains() {
-				// TODO: for every *just solved* constrain
-				List<IConstrain> solved = new List<IConstrain>();
-				foreach (var constrain in Unsolved) {
-					if (constrain.Dependencies.All(v => Assignment[v].Assigned)) {
-						if (constrain.Satisfied(Assignment)) {
-							solved.Add(constrain);
-						} else {
-							return false;
-						}
-					}
-				}
-				foreach (var constrain in solved) {
-					MarkConstrainSolved(constrain);
-				}
-				return true;
-			}
-
-			public bool PropagateTriggers(IEnumerable<PropagationTrigger> inputTriggers) {
-				List<PropagationTrigger> triggers = inputTriggers.ToList(); // XXX HACK
-				List<PropagationTrigger> nextTriggers = new List<PropagationTrigger>();
-
-				int round = 0;
-
-				// TODO: kdyz se nejaka promenna ostrihala na jenom 1 prvek, tak to taky chci zpropagovat jako Assign
-				while (triggers.Count > 0) {
-					if (!ResolveFullyInstantiatedConstrains()) return false;
-
-					if (round++ > 100) {
-						Debug.doDebug = true;
-						Debug.WriteLine("Round >100!");
-						foreach (var trigger in triggers) {
-							Debug.WriteLine(trigger.ToString());
-						}
-					}
-
-					List<Constrains.IConstrain> solved = new List<Constrains.IConstrain>();
-
-					// TODO: for every *affected* constrain
-					foreach (var constrain in Unsolved) {
-						Debug.WriteLine("Propagate through {0}", constrain.Identifier);
-						// TODO: for the triggers that affect the constrain
-						IScratchpad scratchpad;
-						if (Scratchpads.ContainsKey(constrain)) {
-							scratchpad = Scratchpads[constrain];
-						} else {
-							scratchpad = null;
-						}
-						foreach (ConstrainResult result in constrain.Propagate(Assignment, triggers, ref scratchpad)) {
-							Debug.WriteLine("==> {0}", result);
-							switch (result.type) {
-								case ConstrainResult.Type.Failure:
-									Log("Constrain {0} failed.", constrain.Identifier);
-									return false;
-								case ConstrainResult.Type.Success:
-									solved.Add(constrain);
-									break;
-								// TODO: constrain type "intersect"
-								case ConstrainResult.Type.Restrict:
-									if (Assignment[result.variable].CanBe(result.value)) {
-										nextTriggers.Add(PropagationTrigger.Restrict(result.variable, result.value));
-										Restrict(result.variable, result.value);
-
-										if (!Assignment[result.variable].HasPossibleValues) {
-											Log("Constrain {0} caused {1} to have empty value set", constrain.Identifier, result.variable.Identifier);
-											return false;
-										}
-
-										if (Assignment[result.variable].Assigned) {
-											nextTriggers.Add(PropagationTrigger.Assign(result.variable, Assignment[result.variable].Value));
-										}
-									}
-									break;
-								case ConstrainResult.Type.Assign:
-									if (Assignment[result.variable].CanBe(result.value)) {
-										nextTriggers.Add(PropagationTrigger.Assign(result.variable, result.value));
-										Assign(result.variable, result.value);
-										break;
-									} else {
-										Log("Constrain {0} assigns {1} to {2}, but that's not a possible value.", constrain.Identifier, result.value, result.variable.Identifier);
-										return false;
-									}
-								default:
-									throw new Exception("Unknown constrain result"); // TODO
-							}
-						}
-						Scratchpads[constrain] = scratchpad;
-					}
-
-					foreach (var constrain in solved) {
-						Log("Constrain {0} is now solved", constrain.Identifier);
-						MarkConstrainSolved(constrain);
-					}
-
-					triggers = nextTriggers;
-					nextTriggers = new List<PropagationTrigger>();
-				}
-				return true;
-			}
-
-			public void Assign(Variable variable, int value) {
-				Assignment[variable].Value = value;
-				if (ChangedSinceLastArcCheck != null && !ChangedSinceLastArcCheck.Contains(variable)) {
-					ChangedSinceLastArcCheck.Add(variable);
-				}
-			}
-
-			public void Restrict(Variable variable, int value) {
-				Assignment[variable].Restrict(value);
-				if (ChangedSinceLastArcCheck != null && !ChangedSinceLastArcCheck.Contains(variable)) {
-					ChangedSinceLastArcCheck.Add(variable);
-				}
-			}
-		};
-
 		private void Log(string fmt, params object[] args) {
 			Debug.WriteLine("[Solver] {0}", string.Format(fmt, args));
 		}
 
+		/*
 		// TODO: cache results
 		private bool HasArcSupport(Step current, IConstrain constrain, Variable variable, int value) {
 			if (current.Supports == null) return true;
@@ -189,7 +28,6 @@ namespace CompulsiveSkinPicking {
 					}
 				}
 			}
-			/*
 			if (current.Supports.ContainsKey(key)) {
 				IVariableAssignment support = current.Supports[key];
 				if (constrain.Dependencies.All(var => current.Assignment[var].CanBe(support[var].Value))) {
@@ -197,7 +35,6 @@ namespace CompulsiveSkinPicking {
 					return true;
 				}
 			}
-			*/
 
 			// Console.WriteLine("Trying AC for constrain {0}, {1}={2}", constrain.Identifier, variable, value);
 			Step duplicate = new Step() {
@@ -227,7 +64,9 @@ namespace CompulsiveSkinPicking {
 				return false; // Unsupported variable - value pair.
 			}
 		}
+		*/
 
+		/*
 		private bool Progress(Step current, out Step next, bool doConsistency = true) {
 			Variable variable = current.VariableChoice.Value;
 			int value = current.ValueChoice.Value;
@@ -261,10 +100,10 @@ namespace CompulsiveSkinPicking {
 					return false;
 				}
 
-				if (!MakeArcConsistent(next)) {
-					Log("Failed to make next step arc-consistent.");
-					return false;
-				}
+				//if (!MakeArcConsistent(next)) {
+				//	Log("Failed to make next step arc-consistent.");
+				//	return false;
+				//}
 			}
 
 			if (current.VariableChoice.TryProgress(out next.VariableChoice)) {
@@ -273,12 +112,13 @@ namespace CompulsiveSkinPicking {
 
 			return true;
 		}
+		*/
 
-		private Task<IVariableAssignment> SolveAsync(Step step, int depth, CancellationToken cancellationToken) {
+		private Task<IVariableAssignment> SolveAsync(SolutionState step, int depth, CancellationToken cancellationToken) {
 			if (depth >= 3) {
 				return Task.Factory.StartNew(() => {
 					IVariableAssignment result;
-					if (SolveStepSerial(step, out result, cancellationToken)) return result;
+					if (SearchSerial(step, out result, cancellationToken)) return result;
 					return null;
 				});
 			}
@@ -294,9 +134,9 @@ namespace CompulsiveSkinPicking {
 				var subtaskCompletedSource = new CancellationTokenSource();
 				var cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(subtaskCompletedSource.Token, cancellationToken);
 				do {
-					Step nextStep = null;
+					SolutionState nextStep = step.DeepDuplicate();
 					if (cancellationTokenSource.Token.IsCancellationRequested) break;
-					if (Progress(step, out nextStep)) {
+					if (nextStep.Progress()) {
 						subtasks.Add(SolveAsync(nextStep, depth + 1, cancellationTokenSource.Token).ContinueWith((task) => {
 							if (task.Result != null) {
 								Debug.WriteLine("SOLUTION FOUND");
@@ -314,20 +154,57 @@ namespace CompulsiveSkinPicking {
 					completionSource.TrySetResult(null);
 				}, cancellationTokenSource.Token);
 			}, cancellationToken);
+			// TODO: co se tady stane kdyz vevnitr dojde k exceptione?
 
 			return completionSource.Task;
 		}
 
-		private bool SolveStepSerial(Step initial, out IVariableAssignment result, CancellationToken cancellationToken, bool doConsistency = true) {
+		private bool SearchSerial(SolutionState initial, out IVariableAssignment result, CancellationToken cancellationToken) {
 			if (initial == null) throw new NullReferenceException("Null initial step passed");
 
-			Stack<Step> stack = new Stack<Step>();
+			SolutionState state = initial; // .DeepDuplicate();
 
-			stack.Push(initial);
+			// Stack<Step> stack = new Stack<Step>();
+
+			// stack.Push(initial);
 			do {
-				Step step = stack.Peek();
+				//state.Dump();
+				// Step step = stack.Peek();
 
-				Step next = null;
+				// Step next = null;
+				if (state.Success) {
+					Log("Success!");
+					state.Dump();
+					result = state.Assignment;
+					return true;
+				} else {
+					state.AddSavepoint();
+
+					if (state.Progress()) {
+						// OK then.
+					} else {
+						Log("Cannot progress, tried last value.");
+						do {
+							if (state.CanRollbackToSavepoint) {
+								state.RollbackToSavepoint();
+
+								if (state.NextValueChoice()) {
+									// OK
+									break;
+								} else {
+									// We will have to rollback further up
+									continue;
+								}
+							} else {
+								Log("And cannot rollback.");
+								result = null;
+								return false;
+							}
+						} while (true);
+					}
+				}
+
+				/*
 				if (!Progress(step, out next, doConsistency)) {
 					do {
 						if (stack.Peek().NextValueChoice()) {
@@ -354,11 +231,14 @@ namespace CompulsiveSkinPicking {
 						stack.Push(next);
 					}
 				}
+				*/
 			} while (!cancellationToken.IsCancellationRequested);
+
 			result = null;
 			return false; // Cancelled
 		}
 
+		/*
 		private bool ArcConsistencyFeasible(IVariableAssignment assignment, IConstrain constrain) {
 			long domainSizeSum = 0;
 			long domainSizeProduct = 1;
@@ -408,7 +288,7 @@ namespace CompulsiveSkinPicking {
 							foreach (var value in toRemove) {
 								step.Restrict(variable, value);
 								triggers.Add(PropagationTrigger.Restrict(variable, value));
-								if (step.Assignment[variable].Assigned) {
+								if (step.Assignment[variable].Ground) {
 									triggers.Add(PropagationTrigger.Assign(variable, step.Assignment[variable].Value));
 								}
 							}
@@ -425,50 +305,28 @@ namespace CompulsiveSkinPicking {
 			Log("Problem is now arc consistent.");
 			return true;
 		}
+		*/
 
-
-		private bool PropagateInitialTriggers(Step initial) {
-			if (!initial.PropagateTriggers(from v in initial.Assignment.Variables where initial.Assignment[v].Assigned select PropagationTrigger.Assign(v, initial.Assignment[v].Value))) {
-				return false;
-			}
-			if (!MakeArcConsistent(initial)) {
-				return false;
-			}
-			initial.ValueChoice = initial.Assignment[initial.VariableChoice.Value].EnumeratePossibleValues();
-			return true;
-		}
 
 		public bool SolveSerial(Problem problem, out IVariableAssignment result) {
-			Step initial = BuildInitialStep(problem);
-			if (!PropagateInitialTriggers(initial)) {
+			SolutionState initial = new SolutionState(problem);
+			if (!initial.PropagateInitial()) {
 				Log("Initial propagation failed, the problem has no solution.");
 				result = null;
 				return false;
 			}
-			CancellationTokenSource source = new CancellationTokenSource();
-			return SolveStepSerial(initial, out result, CancellationToken.None);
+			initial.SetValueChoice();
+
+			return SearchSerial(initial, out result, CancellationToken.None);
 
 			// TODO: backjumping, backmarking?
 
 			// TODO: paralelizace; kazdy by si musel udrzovat vlastni stack...
 		}
 
-		private Step BuildInitialStep(Problem problem) {
-			Step initial = new Step() {
-				Assignment = problem.CreateEmptyAssignment(),
-				Unsolved = problem.AllConstrains(),
-				VariableChoice = problem.EnumerateVariables(),  // TODO: variable choice heuristic...
-				Scratchpads = new Dictionary<Constrains.IConstrain, IScratchpad>(),
-				Supports = new Dictionary<Tuple<IConstrain, Variable, int>, IVariableAssignment>(),
-				Parent = null
-			};
-			initial.ChangedSinceLastArcCheck = new HashSet<Variable>(initial.Assignment.Variables);
-			return initial;
-		}
-
 		public bool SolveParallel(Problem problem, out IVariableAssignment result) {
-			Step initial = BuildInitialStep(problem);
-			if (!PropagateInitialTriggers(initial)) {
+			SolutionState initial = new SolutionState(problem);
+			if (!initial.PropagateInitial()) {
 				Log("Initial propagation failed, the problem has no solution.");
 				result = null;
 				return false;

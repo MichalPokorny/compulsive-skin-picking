@@ -8,8 +8,8 @@ namespace CompulsiveSkinPicking {
 			public Truth(Variable variable) {
 				this.variable = variable;
 			}
-			public override IEnumerable<ConstrainResult> Propagate(IVariableAssignment assignment, IEnumerable<PropagationTrigger> triggers, ref IScratchpad scratchpad) {
-				if (assignment[variable].Assigned) {
+			public override IEnumerable<ConstrainResult> Propagate(IVariableAssignment assignment, IEnumerable<PropagationTrigger> triggers) {
+				if (assignment[variable].Ground) {
 					if (assignment[variable].Value == 0) {
 						return Failure;
 					} else {
@@ -25,7 +25,7 @@ namespace CompulsiveSkinPicking {
 			public override bool Satisfied(IVariableAssignment assignment) {
 				return assignment[variable].Value != 0;
 			}
-			public override string Identifier { get { return string.Format("<Truth {0}>", variable.Identifier); } }
+			public override string ToString() { return string.Format("<Truth {0}>", variable.Identifier); }
 		}
 	}
 }

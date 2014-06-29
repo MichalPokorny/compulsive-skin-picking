@@ -1,3 +1,4 @@
+using System;
 namespace CompulsiveSkinPicking {
 	public class Variable {
 		public Problem Problem;
@@ -29,6 +30,11 @@ namespace CompulsiveSkinPicking {
 
 		public override string ToString() {
 			return string.Format("Var<{0}>", Identifier);
+		}
+
+		public int CompareTo(object b) {
+			if (!(b is Variable)) throw new Exception();
+			return Identifier.CompareTo((b as Variable).Identifier);
 		}
 	};
 };

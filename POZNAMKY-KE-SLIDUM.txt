@@ -1,0 +1,96 @@
+Datove typy
+===========
+
+	Byval datovy typ na hodnotu kvuli vetsi type-safety.
+	Problemy:
+
+		new Value(0) everywhere
+		value.value everywhere
+		Value.Equals everywhere
+		a huge mess
+
+Nekonecna
+=========
+
+	Puvodne bylo zamysleno mit libovolne velke moznosti na constrainy.
+	Ted dovoluju jenom omezene, protoze to jinak bylo chlupate - treba by zalezelo na tom, ktery constrain vezmu jako prvni...
+
+Implementovane constrainy
+=========================
+
+	&, |, ^: boolean and, or; predpoklada 0-1 promenne
+
+Paralelizace
+============
+
+	Seriove reseni SEND+MORE=MONEY (bez AC, jenom propagace conditionu, git b4a0b2a): 127.3 s
+
+		Take top solution from stack
+		Try to assign 'next value' to first unassigned variable and move 'next value pointer'
+		If the extended solution is consistent,
+			add the extended solution to the stack.
+		Otherwise,
+			if the parent has no more values to try, pop the stack.
+
+	Prima paralelizace:
+
+		Start with some partial solution
+		Create a subtask for every value assignable to first unassigned variable
+		When any task finishes with a solution, cancel everything and return it
+		When all tasks finish with no solution, return 'no solution'
+
+	Rychlost: 157 s :(
+
+	Jak to zrychlit???
+		Pravdepodobne hodne zpomaluje rezie kolem threadu.
+		Budeme vetvit jenom na nekolika prvnich promennych.
+
+		Po vetveni jenom na prvnich 3 promennych: 17.5 s :) (osmijadrovy procesor)
+
+Promenne
+========
+
+	Kazda promenna je cele cislo v nejakych mezich.
+	V kazdem okamziku ma promenna nejake mozne hodnoty, ktere jsou vypsane jako seznam intervalu (ValueRange).
+
+Podminky
+========
+
+	Algebraicke podminky - vyraz ==> promenna (Z = (10-Z)*X + Y/3
+
+	Equal, NotEqual, AllDifferent, And(IConstrain[]), Or(IConstrain[])
+
+Algebraicke podminky
+====================
+
+	Algebraicke podminky si buduji pomocne promenne. Slozite vyrazy se buduji z jednodussich.
+	Kazda pomocna promenna ma nastavene meze odpovidajici tomu, co konkretne podminka dela.
+
+	Vybuduje se strom representujici expression. Na strom se zavola Build(problem), coz v problemu
+	vytvori pomocne promenne a constrainy mezi nimi. Vrati to promennou, ktera reprezentuje vysledek.
+	(Interne metoda Build necha visitora, aby prosel strom a odspodu si vybudoval promenne a podminky.)
+
+	Obecne algebraicke podminky (na cisla):
+		+, - (binarni a unarni), *, / (celociselne), %
+
+	Binarni podminky: (vysledek je automaticky omezen na 0/1)
+		&, |, ^, !, Node.GreaterThan ... Node.LessThanOrEqualTo, Node.Implies
+
+		Constrain.Truth(Variable)
+
+	Ne vsechny podminky maji uplne dokonalou propagaci - napriklad + by mohlo delat bounds propagation.
+
+Vlastni libovolne podminky
+==========================
+
+	Constrain.BinaryFunctional(Func<int, int, int>, Variable, Variable, Variable)
+		(Naimplementovano jako specialni pripad InvertibleBinary)
+
+	Constrain.Relational(Func<int[], bool>, params Variable[])
+
+Problemy
+========
+
+	Je to strasne pomale. Porad vsude vytvarim miliardy poli a listu.
+
+	Jak to vyresit? IBacktrackable -- objekty, ktere se umi uvest do puvodniho stavu a zklonovat. Genericky interface.

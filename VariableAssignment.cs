@@ -4,18 +4,12 @@ using System.Collections.Generic;
 
 namespace CompulsiveSkinPicking {
 	public class VariableAssignment: IVariableAssignment {
-		private Dictionary<Variable, List<ValueRange>> values;
+		private Dictionary<Variable, Domain> domains;
 
 		public VariableAssignment(IEnumerable<Variable> variables) {
-			values = new Dictionary<Variable, List<ValueRange>>();
+			domains = new Dictionary<Variable, Domain>();
 			foreach (var variable in variables) {
-				values[variable] = new List<ValueRange>() { variable.Range };
-			}
-		}
-
-		public List<Variable> Variables {
-			get {
-				return values.Keys.ToList();
+				domains[variable] = new Domain(variable.Range);
 			}
 		}
 
@@ -30,74 +24,43 @@ namespace CompulsiveSkinPicking {
 				this.variable = variable;
 			}
 
-			private List<ValueRange> Values {
+			private Domain Domain {
 				get {
-					return _this.values[variable];
+					return _this.domains[variable];
 				}
 			}
 
 			public int PossibleValueCount {
 				get {
-					return (from range in Values select range.Size).Sum();
+					return Domain.Size;
 				}
 			}
 
 			public void Restrict(int v) {
-				Debug.WriteLine("Remove {0} from the domain of {1}", v, variable.Identifier);
-				_this.values[variable] = Values.ToList(); // XXX: duplicate to restrict
-				foreach (var range in Values) {
-					if (range.Contains(v)) {
-						Values.Remove(range);
-						Debug.WriteLine("-{0}", range);
-						foreach (var newRange in range.SplitAndRemove(v)) {
-							Values.Add(newRange);
-							Debug.WriteLine("+{0}", newRange);
-						}
-						return;
-					}
-				}
-				throw new Exception(string.Format("Cannot remove {0} from domain of {1}, it's not in the domain", v, variable.Identifier));
+				Domain.Restrict_WRONG_AND_SLOW(v);
 			}
 
 			public int Value {
 				get {
-					if (!Assigned) {
-						throw new Exception(string.Format("No value assigned to {0} yet", variable.Identifier));
-					}
-					return Values[0].Singleton;
+					return Domain.Value;
 				}
 				set {
-					if (!CanBe(value)) {
-						throw new Exception(string.Format("Cannot assign {0} to variable {1}", value, variable.Identifier));
-					}
-					_this.values[variable] = new List<ValueRange> { new ValueRange(value) };
+					Domain.Value = value;
 				}
 			}
 
-			public bool BoolValue {
+			public bool Ground {
 				get {
-					return Value != 0;
-				}
-			}
-
-			public bool Assigned {
-				get {
-					return Values.Count == 1 && Values[0].IsSingleton;
+					return Domain.Ground;
 				}
 			}
 			public bool CanBe(int value) {
-				// TODO: can be optimized -- ranges are ascending, no?
-				foreach (var range in Values) {
-					if (range.Contains(value)) {
-						return true;
-					}
-				}
-				return false;
+				return Domain.Contains(value);
 			}
 
 			public bool HasPossibleValues {
 				get {
-					return Values.Count > 0;
+					return !Domain.IsEmpty;
 				}
 			}
 
@@ -105,7 +68,7 @@ namespace CompulsiveSkinPicking {
 				// SLOW AND STUPID
 				Debug.WriteLine("Enumerating possible values for {0}", variable.Identifier);
 				if (HasPossibleValues) {
-					return new ValuesEnumerator(Values.ToArray()); // XXX HACK
+					return new ValuesEnumerator(Domain.LEGACY_RANGES); // XXX HACK
 				} else {
 					throw new Exception("No possible values");
 				}
@@ -115,6 +78,12 @@ namespace CompulsiveSkinPicking {
 		public IVariableManipulator this[Variable variable] {
 			get {
 				return new VariableManipulator(this, variable);
+			}
+		}
+
+		public IEnumerable<Variable> Variables {
+			get {
+				return domains.Keys;
 			}
 		}
 
@@ -182,23 +151,37 @@ namespace CompulsiveSkinPicking {
 		};
 
 		// SLOW
-		public IVariableAssignment Duplicate() {
+		public IVariableAssignment DeepDuplicate() {
 			VariableAssignment dup = new VariableAssignment();
-			dup.values = new Dictionary<Variable, List<ValueRange>>();
-			foreach (var pair in values) {
+			dup.domains = new Dictionary<Variable, Domain>();
+			foreach (var pair in domains) {
 				// XXX HACK
-				dup.values.Add(pair.Key, pair.Value);// .ToList());
+				dup.domains.Add(pair.Key, pair.Value.DeepDuplicate());
 			}
 			return dup;
 		}
 
 		public void Dump() {
-			foreach (var pair in values) {
-				Console.Write("\t\t{0}: ", pair.Key);
-				foreach (var val in pair.Value) {
-					Console.Write("{0} ", val);
-				}
-				Console.WriteLine();
+			foreach (var pair in domains) {
+				Console.WriteLine("\t\t{0}: {1}", pair.Key, pair.Value);
+			}
+		}
+
+		public void AddSavepoint() {
+			foreach (var domain in domains.Values) {
+				domain.AddSavepoint();
+			}
+		}
+
+		public void RollbackToSavepoint() {
+			foreach (var domain in domains.Values) {
+				domain.RollbackToSavepoint();
+			}
+		}
+
+		public bool CanRollbackToSavepoint {
+			get {
+				throw new NotImplementedException("TODO");
 			}
 		}
 	}

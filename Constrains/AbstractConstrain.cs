@@ -4,9 +4,8 @@ using System.Collections.Generic;
 namespace CompulsiveSkinPicking {
 	namespace Constrains {
 		public abstract class AbstractConstrain: IConstrain {
-			public abstract IEnumerable<ConstrainResult> Propagate(IVariableAssignment assignment, IEnumerable<PropagationTrigger> triggers, ref IScratchpad scratchpad);
+			public abstract IEnumerable<ConstrainResult> Propagate(IVariableAssignment assignment, IEnumerable<PropagationTrigger> triggers);
 			public abstract bool Satisfied(IVariableAssignment assignment);
-			public abstract string Identifier { get; }
 
 			protected IEnumerable<ConstrainResult> Failure {
 				get {
@@ -48,7 +47,7 @@ namespace CompulsiveSkinPicking {
 			}
 
 			protected void Log(string str, params object[] args) {
-				Debug.WriteLine("{0} {1}", Identifier, string.Format(str, args));
+				Debug.WriteLine("{0} {1}", ToString(), string.Format(str, args));
 			}
 		};
 	}

@@ -13,6 +13,10 @@
 
 - (value iterator uz nemusi byt tak slozity, protoze mi staci finite domains)
 
+- TODO: value iterator by mel dostavat zpravy o tom, ze se neco stalo s domenou, a mel by se nechat adjustovat.
+
+- OR constrain
+
 ================================
 
 Out of scope:

@@ -13,9 +13,9 @@ namespace CompulsiveSkinPicking {
 				this.dependencies = dependencies;
 			}
 
-			public override IEnumerable<ConstrainResult> Propagate(IVariableAssignment assignment, IEnumerable<PropagationTrigger> triggers, ref IScratchpad scratchpad) {
+			public override IEnumerable<ConstrainResult> Propagate(IVariableAssignment assignment, IEnumerable<PropagationTrigger> triggers) {
 				// TODO: AC with supports
-				if (dependencies.All(var => assignment[var].Assigned)) {
+				if (dependencies.All(var => assignment[var].Ground)) {
 					if (func(dependencies.Select(var => assignment[var].Value).ToArray())) {
 						return Success;
 					} else {
@@ -28,12 +28,6 @@ namespace CompulsiveSkinPicking {
 
 			public override bool Satisfied(IVariableAssignment assignment) {
 				return func(dependencies.Select(var => assignment[var].Value).ToArray());
-			}
-
-			public override string Identifier {
-				get {
-					return "<Relational>"; // TODO
-				}
 			}
 
 			protected override IEnumerable<Variable> GetDependencies() {

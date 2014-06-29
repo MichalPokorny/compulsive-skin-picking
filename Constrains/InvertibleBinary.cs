@@ -18,21 +18,21 @@ namespace CompulsiveSkinPicking {
 				OperatorName = "f";
 			}
 
-			public override IEnumerable<ConstrainResult> Propagate(IVariableAssignment assignment, IEnumerable<PropagationTrigger> triggers, ref IScratchpad scratchpad) {
+			public override IEnumerable<ConstrainResult> Propagate(IVariableAssignment assignment, IEnumerable<PropagationTrigger> triggers) {
 				Log("Propagating");
 				// TODO: AC with supports
-				if (assignment[a].Assigned) {
-					if (assignment[b].Assigned && !assignment[c].Assigned && ab_to_c != null) {
+				if (assignment[a].Ground) {
+					if (assignment[b].Ground && !assignment[c].Ground && ab_to_c != null) {
 						int A = assignment[a].Value, B = assignment[b].Value,
 							C = ab_to_c(A, B);
 						Log("a={0} b={1} ==> c={2}", A, B, C);
 						return Assign(c, C);
-					} else if (assignment[c].Assigned && !assignment[b].Assigned && ac_to_b != null) {
+					} else if (assignment[c].Ground && !assignment[b].Ground && ac_to_b != null) {
 						int A = assignment[a].Value, C = assignment[c].Value,
 							B = ac_to_b(A, C);
 						Log("a={0} c={2} ==> b={1}", A, B, C);
 						return Assign(b, B);
-					} else if (assignment[b].Assigned && assignment[c].Assigned) {
+					} else if (assignment[b].Ground && assignment[c].Ground) {
 						int A = assignment[a].Value, B = assignment[b].Value, C = assignment[c].Value;
 						// TODO: tady bych nemel spolehat ze mam zrovna ab_to_c...
 						if (C == ab_to_c(A, B)) {
@@ -44,7 +44,7 @@ namespace CompulsiveSkinPicking {
 						}
 					}
 				} else {
-					if (assignment[b].Assigned && assignment[c].Assigned && bc_to_a != null) {
+					if (assignment[b].Ground && assignment[c].Ground && bc_to_a != null) {
 						int B = assignment[b].Value, C = assignment[c].Value,
 						    A = bc_to_a(B, C);
 						Log("b={1} c={2} ==> a={0}", A, B, C);
@@ -59,10 +59,8 @@ namespace CompulsiveSkinPicking {
 				return assignment[c].Value == ab_to_c(assignment[a].Value, assignment[b].Value);
 			}
 
-			public override string Identifier {
-				get {
-					return string.Format("<{3}({0},{1})={2}>", a.Identifier, b.Identifier, c.Identifier, OperatorName);
-				}
+			public override string ToString() {
+				return string.Format("<{3}({0},{1})={2}>", a.Identifier, b.Identifier, c.Identifier, OperatorName);
 			}
 
 			public string OperatorName {

@@ -2,7 +2,7 @@ using System;
 
 namespace CompulsiveSkinPicking {
 	static class Debug {
-		public static bool doDebug = false;
+		public static bool doDebug = true;
 
 		public static void Write(string fmt, params object[] args) {
 			if (doDebug) {

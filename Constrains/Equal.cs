@@ -11,7 +11,7 @@ namespace CompulsiveSkinPicking {
 				this.a = a; this.b = b;
 			}
 
-			public override IEnumerable<ConstrainResult> Propagate(IVariableAssignment assignment, IEnumerable<PropagationTrigger> triggers, ref IScratchpad scratchpad) {
+			public override IEnumerable<ConstrainResult> Propagate(IVariableAssignment assignment, IEnumerable<PropagationTrigger> triggers) {
 				if (a == b) {
 					return Success;
 				}
@@ -51,8 +51,8 @@ namespace CompulsiveSkinPicking {
 				return assignment[a].Value == assignment[b].Value;
 			}
 
-			public override string Identifier {
-				get { return string.Format("[{0} == {1}]", a, b); }
+			public override string ToString() {
+				return string.Format("[{0} == {1}]", a, b);
 			}
 
 			protected override IEnumerable<Variable> GetDependencies() {

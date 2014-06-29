@@ -13,8 +13,10 @@ namespace CompulsiveSkinPicking {
 				problem.Constrains.Add(
 					Constrain.Truth(
 						(
-							((!E) | F) & ((!F) | (!A) | (!G)) & (G | C | B) & (D | C) & (F | (!G)) &
-							(G | D | (!B)) & ((!A) | (!B) | (!F)) & (E | G) & (E | B | A) &
+							((!E) | F) & ((!F) | (!A) | (!G)) &
+							(G | C | B) & (D | C) & (F | (!G)) &
+							(G | D | (!B)) & ((!A) | (!B) | (!F)) &
+							(E | G) & (E | B | A) &
 
 							!(D&E&F&G&(!A)&(!B)&(!C))
 						).Build(problem)
@@ -29,8 +31,19 @@ namespace CompulsiveSkinPicking {
 
 				Assert(solver.Solve(problem, out result));
 
-				int a = result[A].Value, b = result[B].Value, c = result[C].Value, d = result[D].Value, e = result[E].Value, f = result[F].Value, g = result[G].Value;
-				Assert(a == 0 && b == 0 && c == 1 && d == 1 && e == 1 && f == 1 && g == 1);
+				bool a = result[A].Value != 0, b = result[B].Value != 0, c = result[C].Value != 0, d = result[D].Value != 0, e = result[E].Value != 0, f = result[F].Value != 0, g = result[G].Value != 0;
+				Assert(!e || f);
+				Assert(!f || !a || !g);
+				Assert(g || c || b);
+				Assert(d || c);
+				Assert(f || !g);
+				Assert(g || d || !b);
+				Assert(!a || !b || !f);
+				Assert(e || g);
+				Assert(e || b || a);
+				Assert(!(d && e && f && g && !a && !b && !c));
+
+				Console.WriteLine("SAT test OK");
 			}
 		}
 	}
