@@ -15,8 +15,8 @@ namespace CompulsiveSkinPicking {
 
 				Variable S = v[0], E = v[1], N = v[2], D = v[3], M = v[4], O = v[5], R = v[6], Y = v[7], W = v[8], T = v[9], A = v[10], P = v[11], L = v[12];
 
-				problem.Constrains.Add(Constrain.AllDifferent(S,E,N,D,M,O,R,Y,W,T));
-				problem.Constrains.Add(Constrain.AllDifferent(S,A,P,L));
+				problem.Constrains.Add(Constrain.AllDifferent(S, E, N, D, M, O, R, Y, W, T));
+				problem.Constrains.Add(Constrain.AllDifferent(S, A, P, L));
 
 				// problem.Constrains.Add(Constrain.Plus(N, D, M));
 				// problem.Constrains.Add(Constrain.Plus(E, N, D));
@@ -44,8 +44,8 @@ namespace CompulsiveSkinPicking {
 				IVariableAssignment result;
 
 				Stopwatch.Instrument(() => {
-					// Assert(solver.SolveParallel(problem, out result));
-					Assert(solver.SolveSerial(problem, out result));
+					Assert(solver.SolveParallel(problem, out result));
+					// Assert(solver.SolveSerial(problem, out result));
 					Console.WriteLine(string.Join(" ", v.Select(variable => string.Format("{0}={1}", variable.Identifier, result[variable].Value))));
 					Console.WriteLine("({0})({1})+{2}={3}+{4}+{5}/3", result[WE].Value, result[WANT].Value, result[SOME].Value, result[MORE].Value, result[MONEY].Value, result[PLEASE].Value);
 				}, (span) => {

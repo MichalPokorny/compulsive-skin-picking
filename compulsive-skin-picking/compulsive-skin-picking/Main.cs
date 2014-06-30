@@ -8,7 +8,7 @@ namespace CompulsiveSkinPicking {
 			new Tests.TwoTwoFour().Run();
 			new Tests.SAT().Run();
 			new Tests.SendMoreMoney().Run();
-//			new Tests.LargeAlgebrogram().Run();
+			new Tests.LargeAlgebrogram().Run();
 		}
 	}
 }

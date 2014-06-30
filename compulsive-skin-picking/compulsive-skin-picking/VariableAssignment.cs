@@ -13,11 +13,13 @@ namespace CompulsiveSkinPicking {
 			}
 		}
 
-		private VariableAssignment() {}
+		private VariableAssignment() {
+		}
 
 		private class VariableManipulator: IVariableManipulator {
 			private VariableAssignment _this;
 			private Variable variable;
+
 			public VariableManipulator(VariableAssignment _this, Variable variable) {
 				// TODO: co kdyz ta promenna neexistuje?
 				this._this = _this;
@@ -54,6 +56,7 @@ namespace CompulsiveSkinPicking {
 					return Domain.Ground;
 				}
 			}
+
 			public bool CanBe(int value) {
 				return Domain.Contains(value);
 			}
@@ -100,6 +103,7 @@ namespace CompulsiveSkinPicking {
 
 			public bool TryProgress(out IExternalEnumerator<int> next) {
 				int nextRange = range + 1;
+				Debug.WriteLine("TryProgress");
 				do {
 					if (nextRange < ranges.Length) {
 						next = new ValuesEnumerator(ranges) {
@@ -145,6 +149,7 @@ namespace CompulsiveSkinPicking {
 						Debug.Write(" {0}", r);
 					}
 					Debug.WriteLine("");
+					Debug.WriteLine("Value returned: {0}", ranges[range][index]);
 					return ranges[range][index];
 				}
 			}
@@ -162,8 +167,13 @@ namespace CompulsiveSkinPicking {
 		}
 
 		public void Dump() {
+			Console.WriteLine("\t{0}", string.Join(" ", from pair in domains
+			                                            where pair.Value.Ground
+			                                            select string.Format("{0}={1}", pair.Key.Identifier, pair.Value.Value)));
 			foreach (var pair in domains) {
-				Console.WriteLine("\t\t{0}: {1}", pair.Key, pair.Value);
+				if (!pair.Value.Ground) {
+					Console.WriteLine("\t\t{0}: {1}", pair.Key.Identifier, pair.Value);
+				}
 			}
 		}
 

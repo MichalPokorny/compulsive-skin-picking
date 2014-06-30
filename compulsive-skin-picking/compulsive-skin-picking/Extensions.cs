@@ -29,7 +29,11 @@ namespace CompulsiveSkinPicking {
 			}
 		}
 
-		public C Value { get { return func(list[index]); } }
+		public C Value { get {
+			C val = func(list[index]);
+			Debug.WriteLine("Value returned: {0}", val);
+			return val;
+		} }
 	}
 	public static class Extensions {
 		public static IExternalEnumerator<T> GetExternalEnumerator<T>(this List<T> list) {

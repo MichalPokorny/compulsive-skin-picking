@@ -18,7 +18,8 @@ namespace CompulsiveSkinPicking {
 			history = new Stack<History>();
 		}
 
-		private SolutionState() {}
+		private SolutionState() {
+		}
 
 		public void Log(string fmt, params object[] args) {
 			Debug.WriteLine("[Asg] {0}", string.Format(fmt, args));
@@ -33,13 +34,13 @@ namespace CompulsiveSkinPicking {
 		public IExternalEnumerator<Variable> VariableChoice;
 
 		public SolutionState DeepDuplicate() {
-			SolutionState duplicate = new SolutionState() {
+			return new SolutionState() {
 				VariableChoice = VariableChoice,
 				ValueChoice = ValueChoice,
-				Unsolved = Unsolved.ToList()
+				Unsolved = Unsolved.ToList(),
+				Assignment = Assignment.DeepDuplicate(),
+				history = new Stack<History>()
 			};
-			duplicate.Assignment = Assignment.DeepDuplicate();
-			return duplicate;
 		}
 
 		private struct History {
@@ -57,24 +58,26 @@ namespace CompulsiveSkinPicking {
 		}
 
 		public void RollbackToSavepoint() {
-			Assignment.RollbackToSavepoint();
 			VariableChoice = history.Peek().VariableChoice;
 			ValueChoice = history.Peek().ValueChoice;
 			Unsolved = history.Peek().Unsolved;
+			Assignment.RollbackToSavepoint();
+
 			history.Pop();
 		}
 
 		public void AddSavepoint() {
-			Assignment.AddSavepoint();
 			history.Push(new History() {
 				ValueChoice = ValueChoice,
 				VariableChoice = VariableChoice,
 				Unsolved = Unsolved.ToList() // XXX slow
 			});
+			Assignment.AddSavepoint();
 		}
 
 		// Store a list of constrains that remain to be satisfied
 		public List<IConstrain> Unsolved;
+
 		public void MarkConstrainSolved(Constrains.IConstrain constrain) {
 			Unsolved.Remove(constrain);
 		}
@@ -101,9 +104,10 @@ namespace CompulsiveSkinPicking {
 
 		public bool PropagateInitial() {
 			if (!PropagateTriggers(
-				from v in Assignment.Variables where Assignment[v].Ground
+				    from v in Assignment.Variables
+				where Assignment[v].Ground
 				select PropagationTrigger.Assign(v, Assignment[v].Value)
-			)) {
+			    )) {
 				return false;
 			}
 			return true;
@@ -126,7 +130,8 @@ namespace CompulsiveSkinPicking {
 
 			// TODO: kdyz se nejaka promenna ostrihala na jenom 1 prvek, tak to taky chci zpropagovat jako Assign
 			while (triggers.Count > 0) {
-				if (!ResolveFullyInstantiatedConstrains()) return false;
+				if (!ResolveFullyInstantiatedConstrains())
+					return false;
 
 				if (round++ > 100) {
 					Debug.doDebug = true;
@@ -144,39 +149,39 @@ namespace CompulsiveSkinPicking {
 					foreach (ConstrainResult result in constrain.Propagate(Assignment, triggers)) {
 						Log("==> {0}", result);
 						switch (result.type) {
-							case ConstrainResult.Type.Failure:
-								Log("Constrain {0} failed.", constrain);
-								return false;
-							case ConstrainResult.Type.Success:
-								solved.Add(constrain);
-								break;
-							// TODO: constrain type "intersect"
-							case ConstrainResult.Type.Restrict:
-								if (Assignment[result.variable].CanBe(result.value)) {
-									nextTriggers.Add(PropagationTrigger.Restrict(result.variable, result.value));
-									Restrict(result.variable, result.value);
+						case ConstrainResult.Type.Failure:
+							Log("Constrain {0} failed.", constrain);
+							return false;
+						case ConstrainResult.Type.Success:
+							solved.Add(constrain);
+							break;
+						// TODO: constrain type "intersect"
+						case ConstrainResult.Type.Restrict:
+							if (Assignment[result.variable].CanBe(result.value)) {
+								nextTriggers.Add(PropagationTrigger.Restrict(result.variable, result.value));
+								Restrict(result.variable, result.value);
 
-									if (!Assignment[result.variable].HasPossibleValues) {
-										Log("Constrain {0} caused {1} to have empty value set", constrain, result.variable.Identifier);
-										return false;
-									}
-
-									if (Assignment[result.variable].Ground) {
-										nextTriggers.Add(PropagationTrigger.Assign(result.variable, Assignment[result.variable].Value));
-									}
-								}
-								break;
-							case ConstrainResult.Type.Assign:
-								if (Assignment[result.variable].CanBe(result.value)) {
-									nextTriggers.Add(PropagationTrigger.Assign(result.variable, result.value));
-									Assign(result.variable, result.value);
-									break;
-								} else {
-									Log("Constrain {0} assigns {1} to {2}, but that's not a possible value.", constrain, result.value, result.variable.Identifier);
+								if (!Assignment[result.variable].HasPossibleValues) {
+									Log("Constrain {0} caused {1} to have empty value set", constrain, result.variable.Identifier);
 									return false;
 								}
-							default:
-								throw new Exception("Unknown constrain result"); // TODO
+
+								if (Assignment[result.variable].Ground) {
+									nextTriggers.Add(PropagationTrigger.Assign(result.variable, Assignment[result.variable].Value));
+								}
+							}
+							break;
+						case ConstrainResult.Type.Assign:
+							if (Assignment[result.variable].CanBe(result.value)) {
+								nextTriggers.Add(PropagationTrigger.Assign(result.variable, result.value));
+								Assign(result.variable, result.value);
+								break;
+							} else {
+								Log("Constrain {0} assigns {1} to {2}, but that's not a possible value.", constrain, result.value, result.variable.Identifier);
+								return false;
+							}
+						default:
+							throw new Exception("Unknown constrain result"); // TODO
 						}
 					}
 				}
@@ -236,18 +241,22 @@ namespace CompulsiveSkinPicking {
 		}
 
 		public bool Progress() {
+			Log("Starting progress");
 			Variable variable = VariableChoice.Value;
+			Log("Reading value choice");
 			int value = ValueChoice.Value;
 
 			Log("Assign: {0} <- {1}", variable, value);
 
 			Assign(variable, value);
 
+			Log("Assigned, propagating");
 			if (!PropagateTriggers(new [] { PropagationTrigger.Assign(variable, value) })) {
 				Log("Propagating assignment failed.");
 				return false;
 			}
-			if (!ResolveFullyInstantiatedConstrains()) return false;
+			if (!ResolveFullyInstantiatedConstrains())
+				return false;
 
 			//if (!MakeArcConsistent(next)) {
 			//	Log("Failed to make next step arc-consistent.");
@@ -267,7 +276,8 @@ namespace CompulsiveSkinPicking {
 			Console.WriteLine("SolutionState:");
 			Assignment.Dump();
 			Console.WriteLine("\tOutstanding constrains:");
-			foreach (var c in Unsolved) Console.WriteLine("\t\t{0}", c);
+			foreach (var c in Unsolved)
+				Console.WriteLine("\t\t{0}", c);
 		}
 	}
 }

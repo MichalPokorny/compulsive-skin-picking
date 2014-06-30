@@ -118,8 +118,14 @@ namespace CompulsiveSkinPicking {
 			if (depth >= 3) {
 				return Task.Factory.StartNew(() => {
 					IVariableAssignment result;
-					if (SearchSerial(step, out result, cancellationToken)) return result;
-					return null;
+					Debug.WriteLine("Solving in serial.");
+					if (SearchSerial(step.DeepDuplicate(), out result, cancellationToken)) {
+						Debug.WriteLine("Serial search found solution");
+						return result;
+					} else {
+						Debug.WriteLine("Serial search found nothing");
+						return null;
+					}
 				});
 			}
 
@@ -135,7 +141,10 @@ namespace CompulsiveSkinPicking {
 				var cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(subtaskCompletedSource.Token, cancellationToken);
 				do {
 					SolutionState nextStep = step.DeepDuplicate();
-					if (cancellationTokenSource.Token.IsCancellationRequested) break;
+					if (cancellationTokenSource.Token.IsCancellationRequested) {
+						Debug.WriteLine("Cancellation requested");
+						break;
+					}
 					if (nextStep.Progress()) {
 						subtasks.Add(SolveAsync(nextStep, depth + 1, cancellationTokenSource.Token).ContinueWith((task) => {
 							if (task.Result != null) {
@@ -147,8 +156,11 @@ namespace CompulsiveSkinPicking {
 								subtaskCompletedSource.Cancel();
 							}
 						}, cancellationTokenSource.Token));
+					} else {
+						Debug.WriteLine("Progress failed");
 					}
 				} while (step.NextValueChoice());
+				Debug.WriteLine("No more value choices");
 
 				Task.WhenAll(subtasks).ContinueWith((tasks) => {
 					completionSource.TrySetResult(null);
@@ -160,9 +172,9 @@ namespace CompulsiveSkinPicking {
 		}
 
 		private bool SearchSerial(SolutionState initial, out IVariableAssignment result, CancellationToken cancellationToken) {
-			if (initial == null) throw new NullReferenceException("Null initial step passed");
+			// initial.Dump();
 
-			SolutionState state = initial; // .DeepDuplicate();
+			SolutionState state = initial.DeepDuplicate(); // TODO: asi neni potreba
 
 			// Stack<Step> stack = new Stack<Step>();
 
@@ -175,7 +187,7 @@ namespace CompulsiveSkinPicking {
 				if (state.Success) {
 					Log("Success!");
 					state.Dump();
-					result = state.Assignment;
+					result = state.Assignment.DeepDuplicate();
 					return true;
 				} else {
 					state.AddSavepoint();
@@ -331,6 +343,7 @@ namespace CompulsiveSkinPicking {
 				result = null;
 				return false;
 			}
+			initial.SetValueChoice();
 
 			// TODO: value choice heuristic
 			// TODO: null?
