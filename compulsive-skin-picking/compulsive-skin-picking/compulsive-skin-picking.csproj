@@ -71,6 +71,9 @@
     <Compile Include="Tests\ThreeColorsInGraph.cs" />
     <Compile Include="Tests\TwoTwoFour.cs" />
     <Compile Include="Tests\ValueRangeTest.cs" />
+    <Compile Include="ObjectiveDirection.cs" />
+    <Compile Include="Tests\SendMoreMoneyMaximize.cs" />
+    <Compile Include="Tests\SendMoreMoneyBuilder.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>

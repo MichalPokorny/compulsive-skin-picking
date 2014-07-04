@@ -321,6 +321,17 @@ namespace CompulsiveSkinPicking {
 
 
 		public bool SolveSerial(Problem problem, out IVariableAssignment result) {
+			if (problem.IsOptimization) {
+				return Optimize(problem, out result, (subproblem) => {
+					IVariableAssignment _result;
+					if (SolveSerial(subproblem, out _result)) {
+						return _result;
+					} else {
+						return null;
+					}
+				});
+			}
+
 			SolutionState initial = new SolutionState(problem);
 			if (!initial.PropagateInitial()) {
 				Log("Initial propagation failed, the problem has no solution.");
@@ -337,6 +348,17 @@ namespace CompulsiveSkinPicking {
 		}
 
 		public bool SolveParallel(Problem problem, out IVariableAssignment result) {
+			if (problem.IsOptimization) {
+				return Optimize(problem, out result, (subproblem) => {
+					IVariableAssignment _result;
+					if (SolveParallel(subproblem, out _result)) {
+						return _result;
+					} else {
+						return null;
+					}
+				});
+			}
+
 			SolutionState initial = new SolutionState(problem);
 			if (!initial.PropagateInitial()) {
 				Log("Initial propagation failed, the problem has no solution.");
@@ -357,6 +379,82 @@ namespace CompulsiveSkinPicking {
 
 		public bool Solve(Problem problem, out IVariableAssignment result) {
 			return SolveSerial(problem, out result);
+		}
+
+		protected bool Optimize(Problem problem, out IVariableAssignment result, Func<Problem, IVariableAssignment> solver) {
+			Variable objective = problem.ObjectiveVariable;
+			problem.ObjectiveVariable = null;
+			try {
+				IVariableAssignment bestKnown;
+				ValueRange bounds = objective.Range;
+				ObjectiveDirection direction = problem.ObjectiveDirection;
+
+				if (direction != ObjectiveDirection.Minimize && direction != ObjectiveDirection.Maximize)
+					throw new Exception("Unknown opt direction"); // TODO better exception
+					
+				bestKnown = solver(problem);
+				if (bestKnown == null) {
+					result = null;
+					Log("Optimization problem is not solvable.");
+					return false;
+				}
+
+				if (direction == ObjectiveDirection.Maximize) {
+					bounds.Minimum = bestKnown[objective].Value;
+				} else {
+					bounds.Maximum = bestKnown[objective].Value + 1;
+				}
+
+				// Binary search
+				while (!bounds.IsSingleton) {
+					Console.WriteLine("Bounds: {0}", bounds);
+					int middle = (bounds.Maximum + bounds.Minimum) / 2;
+					int min, max;
+
+					if (direction == ObjectiveDirection.Maximize) {
+						min = middle;
+						max = bounds.Maximum;
+					} else {
+						min = bounds.Minimum;
+						max = middle;
+					}
+					Console.WriteLine("We will be looking for {0} <= X < {1}", min, max);
+
+					IConstrain lowerConstrain, upperConstrain;
+					lowerConstrain = Constrain.GreaterThanOrEqualTo(objective, ((AlgebraicExpression.ConstantNode)(min)).Build(problem));
+					upperConstrain = Constrain.GreaterThan(((AlgebraicExpression.ConstantNode)(max)).Build(problem), objective);
+
+					problem.Constrains.Add(lowerConstrain);
+					problem.Constrains.Add(upperConstrain);
+
+					IVariableAssignment newSolution = solver(problem);
+					if (newSolution != null) {
+						Console.WriteLine("Solution found: {0}", newSolution[objective].Value);
+						bestKnown = newSolution;
+
+						if (direction == ObjectiveDirection.Maximize) {
+							bounds.Minimum = bestKnown[objective].Value;
+						} else {
+							bounds.Maximum = bestKnown[objective].Value + 1;
+						}
+					} else {
+						Console.WriteLine("No solution found");
+						if (direction == ObjectiveDirection.Maximize) {
+							bounds.Maximum = min;
+						} else {
+							bounds.Minimum = max;
+						}
+					}
+
+					problem.Constrains.Remove(lowerConstrain);
+					problem.Constrains.Remove(upperConstrain);
+				}
+
+				result = bestKnown;
+				return true;
+			} finally {
+				problem.ObjectiveVariable = objective;
+			}
 		}
 	}
 }

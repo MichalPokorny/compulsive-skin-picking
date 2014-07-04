@@ -86,6 +86,16 @@ namespace CompulsiveSkinPicking {
 			}, a, b, y);
 		}
 
+		public static IConstrain GreaterThan(Variable a, Variable b) {
+			// TODO: better propagation
+			return Relational((vars) => vars[0] > vars[1], a, b);
+		}
+
+		public static IConstrain GreaterThanOrEqualTo(Variable a, Variable b) {
+			// TODO: better propagation
+			return Relational((vars) => vars[0] >= vars[1], a, b);
+		}
+
 		public static IConstrain VariableImplies(Variable a, Variable b, Variable y) {
 			// TODO: better propagation...
 			return BinaryFunctional((A, B) => {
@@ -96,7 +106,10 @@ namespace CompulsiveSkinPicking {
 
 		public static IEnumerable<IConstrain> AllDifferent(params Variable[] variables) {
 			// TODO: more effective all-different constrain?
-			return (from a in variables select (from b in variables where a != b && a.CompareTo(b) > 0 select NotEqual(a, b))).Aggregate((IEnumerable<IConstrain>) new IConstrain[] {}, (a, b) => a.Concat(b));
+			return (from a in variables
+			        select (from b in variables
+			                where a != b && a.CompareTo(b) > 0
+			                select NotEqual(a, b))).Aggregate((IEnumerable<IConstrain>)new IConstrain[] { }, (a, b) => a.Concat(b));
 		}
 
 		public static IConstrain Truth(Variable x) {

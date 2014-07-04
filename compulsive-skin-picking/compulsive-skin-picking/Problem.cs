@@ -6,15 +6,19 @@ namespace CompulsiveSkinPicking {
 	public class Problem {
 		public interface IVariables {
 			// TODO implement and test
-			Variable[] AddIntegers(int count, int minimum, int maximum, Func<int, string> namingConvention = null); // minimum: inclusive, maximum: exclusive
+			Variable[] AddIntegers(int count, int minimum, int maximum, Func<int, string> namingConvention = null);
+			// minimum: inclusive, maximum: exclusive
 			Variable AddInteger(ValueRange range, string name = null);
+
 			Variable AddInteger(int minimum, int maximum, string name = null);
 
 			Variable AddBoolean(string name = null);
+
 			Variable[] AddBooleans(int count, Func<int, string> namingConvention = null);
 		}
 
 		private VariablesType _Variables;
+
 		public IVariables Variables {
 			get {
 				return _Variables;
@@ -28,15 +32,18 @@ namespace CompulsiveSkinPicking {
 
 		private class VariablesType: IVariables {
 			Problem problem;
+
 			public VariablesType(Problem problem) {
 				this.problem = problem;
 			}
+
 			private void AddVariableInternal(Variable variable) {
 				if (problem.variables.Any(v => v.Identifier == variable.Identifier)) {
 					throw new Exception(string.Format("Variable name {0} is already used.", variable.Identifier));
 				}
 				problem.variables.Add(variable);
 			}
+
 			public Variable AddInteger(ValueRange range, string name = null) {
 				Variable variable = new Variable() {
 					Problem = problem,
@@ -46,12 +53,15 @@ namespace CompulsiveSkinPicking {
 				AddVariableInternal(variable);
 				return variable;
 			}
+
 			public Variable AddInteger(int minimum, int maximum, string name = null) {
 				return AddInteger(new ValueRange(minimum, maximum), name);
 			}
+
 			public Variable AddBoolean(string name = null) {
 				return AddInteger(0, 2, name);
 			}
+
 			public Variable[] AddIntegers(int count, int minimum, int maximum, Func<int, string> namingConvention = null) {
 				if (count < 0) {
 					throw new ArgumentException("Negative variable count passed to AddIntegers");
@@ -82,6 +92,7 @@ namespace CompulsiveSkinPicking {
 				}
 				return result;
 			}
+
 			public Variable[] AddBooleans(int count, Func<int, string> namingConvention = null) {
 				return AddIntegers(count, 0, 2, namingConvention);
 			}
@@ -93,22 +104,25 @@ namespace CompulsiveSkinPicking {
 
 		public interface IConstrains {
 			void Add(params Constrains.IConstrain[] constrains);
+
 			void Add(IEnumerable<Constrains.IConstrain> constrains);
+
+			void Remove(params Constrains.IConstrain[] constrains);
+
+			void Remove(IEnumerable<Constrains.IConstrain> constrains);
 		};
 
 		private ConstrainsType _Constrains;
+
 		private class ConstrainsType: IConstrains {
 			Problem problem;
+
 			public ConstrainsType(Problem problem) {
 				this.problem = problem;
 			}
 
 			public void Add(params Constrains.IConstrain[] constrains) {
-				foreach (var c in constrains) {
-					// TODO check that the variable is from this problem
-					// TODO check uniqueness
-					problem.constrains.Add(c);
-				}
+				Add((IEnumerable<Constrains.IConstrain>)constrains);
 			}
 
 			public void Add(IEnumerable<Constrains.IConstrain> constrains) {
@@ -116,6 +130,17 @@ namespace CompulsiveSkinPicking {
 					// TODO check that the variable is from this problem
 					// TODO check uniqueness
 					problem.constrains.Add(c);
+				}
+			}
+
+			public void Remove(params Constrains.IConstrain[] constrains) {
+				Remove((IEnumerable<Constrains.IConstrain>)constrains);
+			}
+
+			public void Remove(IEnumerable<Constrains.IConstrain> constrains) {
+				foreach (var c in constrains) {
+					// TODO: what if the constrain doesn't exist?
+					problem.constrains.Remove(c);
 				}
 			}
 		};
@@ -146,6 +171,20 @@ namespace CompulsiveSkinPicking {
 
 		public IExternalEnumerator<Variable> EnumerateVariables() {
 			return variables.GetExternalEnumerator();
+		}
+
+		public ObjectiveDirection ObjectiveDirection;
+		public Variable ObjectiveVariable;
+
+		public bool IsOptimization {
+			get {
+				return ObjectiveVariable != null;
+			}
+		}
+
+		public void SetObjective(Variable variable, ObjectiveDirection direction) {
+			ObjectiveVariable = variable;
+			ObjectiveDirection = direction;
 		}
 	}
 }
