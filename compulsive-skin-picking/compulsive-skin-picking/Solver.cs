@@ -399,6 +399,8 @@ namespace CompulsiveSkinPicking {
 					return false;
 				}
 
+				Debug.WriteLine("Initial solution: {0}", bestKnown[objective].Value);
+
 				if (direction == ObjectiveDirection.Maximize) {
 					bounds.Minimum = bestKnown[objective].Value;
 				} else {
@@ -407,18 +409,18 @@ namespace CompulsiveSkinPicking {
 
 				// Binary search
 				while (!bounds.IsSingleton) {
-					Console.WriteLine("Bounds: {0}", bounds);
-					int middle = (bounds.Maximum + bounds.Minimum) / 2;
+					Debug.WriteLine("Bounds: {0}", bounds);
+					// int middle = (bounds.Maximum + bounds.Minimum) / 2;
 					int min, max;
 
 					if (direction == ObjectiveDirection.Maximize) {
-						min = middle;
+						min = bestKnown[objective].Value + 1; // bounds.Maximum + 1;
 						max = bounds.Maximum;
 					} else {
 						min = bounds.Minimum;
-						max = middle;
+						max = bestKnown[objective].Value;
 					}
-					Console.WriteLine("We will be looking for {0} <= X < {1}", min, max);
+					Debug.WriteLine("We will be looking for {0} <= X < {1}", min, max);
 
 					IConstrain lowerConstrain, upperConstrain;
 					lowerConstrain = Constrain.GreaterThanOrEqualTo(objective, ((AlgebraicExpression.ConstantNode)(min)).Build(problem));
@@ -429,7 +431,7 @@ namespace CompulsiveSkinPicking {
 
 					IVariableAssignment newSolution = solver(problem);
 					if (newSolution != null) {
-						Console.WriteLine("Solution found: {0}", newSolution[objective].Value);
+						Debug.WriteLine("Solution found: {0}", newSolution[objective].Value);
 						bestKnown = newSolution;
 
 						if (direction == ObjectiveDirection.Maximize) {
@@ -438,7 +440,7 @@ namespace CompulsiveSkinPicking {
 							bounds.Maximum = bestKnown[objective].Value + 1;
 						}
 					} else {
-						Console.WriteLine("No solution found");
+						Debug.WriteLine("No solution found");
 						if (direction == ObjectiveDirection.Maximize) {
 							bounds.Maximum = min;
 						} else {

@@ -2,20 +2,20 @@
   <MonoDevelop.Ide.Workspace ActiveConfiguration="Debug|x86" />
   <MonoDevelop.Ide.Workbench ActiveDocument="compulsive-skin-picking/Solver.cs">
     <Files>
-      <File FileName="compulsive-skin-picking/Constrain.cs" Line="20" Column="1" />
-      <File FileName="compulsive-skin-picking/Main.cs" Line="6" Column="8" />
-      <File FileName="compulsive-skin-picking/Solver.cs" Line="458" Column="1" />
+      <File FileName="compulsive-skin-picking/Constrain.cs" Line="1" Column="1" />
+      <File FileName="compulsive-skin-picking/Main.cs" Line="1" Column="1" />
+      <File FileName="compulsive-skin-picking/Solver.cs" Line="402" Column="76" />
       <File FileName="compulsive-skin-picking/SolutionState.cs" Line="1" Column="1" />
       <File FileName="compulsive-skin-picking/Tests/Test.cs" Line="1" Column="1" />
-      <File FileName="compulsive-skin-picking/Tests/SendMoreMoney.cs" Line="11" Column="44" />
+      <File FileName="compulsive-skin-picking/Tests/SendMoreMoney.cs" Line="1" Column="1" />
       <File FileName="compulsive-skin-picking/Debug.cs" Line="1" Column="1" />
       <File FileName="compulsive-skin-picking/VariableAssignment.cs" Line="1" Column="1" />
-      <File FileName="compulsive-skin-picking/Tests/LargeAlgebrogram.cs" Line="51" Column="19" />
-      <File FileName="compulsive-skin-picking/Problem.cs" Line="112" Column="49" />
+      <File FileName="compulsive-skin-picking/Tests/LargeAlgebrogram.cs" Line="1" Column="1" />
+      <File FileName="compulsive-skin-picking/Problem.cs" Line="1" Column="1" />
       <File FileName="compulsive-skin-picking/ObjectiveDirection.cs" Line="1" Column="1" />
-      <File FileName="compulsive-skin-picking/Tests/SendMoreMoneyBuilder.cs" Line="38" Column="5" />
+      <File FileName="compulsive-skin-picking/Tests/SendMoreMoneyBuilder.cs" Line="1" Column="1" />
       <File FileName="compulsive-skin-picking/Variable.cs" Line="1" Column="1" />
-      <File FileName="compulsive-skin-picking/Tests/SendMoreMoneyMaximize.cs" Line="11" Column="49" />
+      <File FileName="compulsive-skin-picking/Tests/SendMoreMoneyMaximize.cs" Line="1" Column="1" />
     </Files>
   </MonoDevelop.Ide.Workbench>
   <MonoDevelop.Ide.DebuggingService.Breakpoints>
