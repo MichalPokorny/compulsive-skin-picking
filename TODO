@@ -7,8 +7,6 @@
 - conflict-directed backjumping
 - 8-queens
 
-- branch-and-bound
-
 - divide test
 
 - (value iterator uz nemusi byt tak slozity, protoze mi staci finite domains)
