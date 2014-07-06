@@ -5,8 +5,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using CompulsiveSkinPicking.Constrains;
 
-// TODO: propagate "assign" u vsech, co jsou assignute v prvnim kroku
-
 namespace CompulsiveSkinPicking {
 	public class Solver {
 		private void Log(string fmt, params object[] args) {
@@ -215,35 +213,6 @@ namespace CompulsiveSkinPicking {
 						} while (true);
 					}
 				}
-
-				/*
-				if (!Progress(step, out next, doConsistency)) {
-					do {
-						if (stack.Peek().NextValueChoice()) {
-							// OK
-							break;
-						} else {
-							if (stack.Count == 1) {
-								// Unsolvable, trying to backtrack up.
-								Log("Fail, unsolvable.");
-								result = null;
-								return false;
-							} else {
-								Log("No next value choice. Turning back.");
-								stack.Pop(); // No next value choice. Return back.
-							}
-						}
-					} while (true);
-				} else {
-					if (next.Success) {
-						Log("Success!");
-						result = next.Assignment;
-						return true;
-					} else {
-						stack.Push(next);
-					}
-				}
-				*/
 			} while (!cancellationToken.IsCancellationRequested);
 
 			result = null;

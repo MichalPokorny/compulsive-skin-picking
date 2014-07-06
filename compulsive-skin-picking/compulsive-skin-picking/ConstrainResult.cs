@@ -3,7 +3,10 @@ using System;
 namespace CompulsiveSkinPicking {
 	public struct ConstrainResult {
 		public enum Type {
-			Failure, Success, Restrict, Assign
+			Failure,
+			Success,
+			Restrict,
+			Assign
 		}
 
 		public Type type;
@@ -23,6 +26,7 @@ namespace CompulsiveSkinPicking {
 		}
 
 		public bool IsFailure { get { return type == Type.Failure; } }
+
 		public bool IsSuccess { get { return type == Type.Success; } }
 
 		public static ConstrainResult Restrict(Variable variable, int value) {
@@ -38,20 +42,20 @@ namespace CompulsiveSkinPicking {
 		public override string ToString() {
 			string str;
 			switch (type) {
-				case Type.Failure:
-					str = "Failure";
-					break;
-				case Type.Success:
-					str = "Success";
-					break;
-				case Type.Restrict:
-					str = string.Format("Restrict<{0} != {1}>", variable, value);
-					break;
-				case Type.Assign:
-					str = string.Format("Assign<{0} <-- {1}>", variable, value);
-					break;
-				default:
-					throw new Exception("Unknown type");
+			case Type.Failure:
+				str = "Failure";
+				break;
+			case Type.Success:
+				str = "Success";
+				break;
+			case Type.Restrict:
+				str = string.Format("Restrict<{0} != {1}>", variable, value);
+				break;
+			case Type.Assign:
+				str = string.Format("Assign<{0} <-- {1}>", variable, value);
+				break;
+			default:
+				throw new Exception("Unknown type");
 			}
 			return string.Format("ConstrainResult<{0}>", str);
 		}

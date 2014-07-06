@@ -49,7 +49,6 @@
     <Compile Include="Problem.cs" />
     <Compile Include="PropagationTrigger.cs" />
     <Compile Include="SolutionState.cs" />
-    <Compile Include="Solver.cs" />
     <Compile Include="ValueRange.cs" />
     <Compile Include="Variable.cs" />
     <Compile Include="VariableAssignment.cs" />
@@ -74,6 +73,8 @@
     <Compile Include="ObjectiveDirection.cs" />
     <Compile Include="Tests\SendMoreMoneyMaximize.cs" />
     <Compile Include="Tests\SendMoreMoneyBuilder.cs" />
+    <Compile Include="Solver.cs" />
+    <Compile Include="Tests\NQueens.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
