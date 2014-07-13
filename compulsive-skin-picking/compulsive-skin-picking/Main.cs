@@ -7,7 +7,7 @@ namespace CompulsiveSkinPicking {
 		public static void Main(string[] args) {
 			var tests = new KeyValuePair<string, Test>[] {
 				new KeyValuePair<string, Test>("ValueRange", new ValueRangeTest()),
-				new KeyValuePair<string, Test>("ThreeColorsIsGraph", new ThreeColorsInGraph()),
+				new KeyValuePair<string, Test>("ThreeColorsInGraph", new ThreeColorsInGraph()),
 				new KeyValuePair<string, Test>("TwoTwoFour", new TwoTwoFour()),
 				new KeyValuePair<string, Test>("SAT", new SAT()),
 				new KeyValuePair<string, Test>("SendMoreMoney", new SendMoreMoney()),
