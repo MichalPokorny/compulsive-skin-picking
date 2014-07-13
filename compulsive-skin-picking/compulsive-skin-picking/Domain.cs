@@ -57,7 +57,7 @@ namespace CompulsiveSkinPicking {
 			}
 		}
 
-		public void Restrict_WRONG_AND_SLOW(int v) {
+		public void Restrict(int v) {
 			Debug.WriteLine("Remove {0} from a domain", v);
 			changesSinceLastSavepoint++;
 			foreach (var range in values) {

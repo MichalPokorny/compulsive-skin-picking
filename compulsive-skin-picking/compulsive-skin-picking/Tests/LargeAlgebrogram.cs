@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using CompulsiveSkinPicking.AlgebraicExpression;
 
 namespace CompulsiveSkinPicking {
 	namespace Tests {
@@ -8,7 +9,7 @@ namespace CompulsiveSkinPicking {
 				Console.WriteLine("Testing large algebrogram...");
 				Problem problem = new Problem();
 
-				// (W E) (W A N T) + (S O M E) = (M O R E) + (M O N E Y) + (P L E A S E)
+				// (W E) (W A N T) + (S O M E) = (M O R E) + (M O N E Y) + (P L E A S E)/3
 
 				string[] names = "S E N D M O R Y W T A P L".Split();
 				Variable[] v = problem.Variables.AddIntegers(13, 0, 10, x => names[x]);
@@ -34,10 +35,10 @@ namespace CompulsiveSkinPicking {
 						(MORE + MONEY + (PLEASE / 3)).Build(problem)
 					)
 				);
-				problem.Constrains.Add(Constrain.NotEqual(W, new AlgebraicExpression.ConstantNode(0).Build(problem)));
-				problem.Constrains.Add(Constrain.NotEqual(S, new AlgebraicExpression.ConstantNode(0).Build(problem)));
-				problem.Constrains.Add(Constrain.NotEqual(M, new AlgebraicExpression.ConstantNode(0).Build(problem)));
-				problem.Constrains.Add(Constrain.NotEqual(P, new AlgebraicExpression.ConstantNode(0).Build(problem)));
+				problem.Constrains.Add(Constrain.NotEqual(W, 0.Build(problem)));
+				problem.Constrains.Add(Constrain.NotEqual(S, 0.Build(problem)));
+				problem.Constrains.Add(Constrain.NotEqual(M, 0.Build(problem)));
+				problem.Constrains.Add(Constrain.NotEqual(P, 0.Build(problem)));
 
 				// TODO: dalsi test: maximalizace
 				Solver solver = new Solver();

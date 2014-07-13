@@ -1,0 +1,246 @@
+\documentclass[a4paper]{article}
+% \usepackage{fullpage}
+\usepackage[utf8]{inputenc}
+\usepackage[nottoc,numbib]{tocbibind}
+% \usepackage{amssymb}
+% \usepackage{amsmath}
+\usepackage[czech]{babel}
+\usepackage{listings}
+\usepackage{todonotes}
+\usepackage{fancyhdr}
+\usepackage{listings}
+\usepackage{wrapfig}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{placeins}
+
+% \definecolor{string}{rgb}{0.7,0.0,0.0}
+% \definecolor{comment}{rgb}{0.13,0.54,0.13}
+% \definecolor{keyword}{rgb}{0.0,0.0,1.0}
+% \lstset{
+% % numbers=left,
+%   language=Ruby,
+%   frame=single,
+%   tabsize=2,
+%   basicstyle=\footnotesize\ttfamily,
+%   keywordstyle=\color{keyword}\textbf,
+%   commentstyle=\color{comment}\textit,
+%   stringstyle=\color{string}
+% }
+% \pgfdeclarelayer{background}
+% \pgfdeclarelayer{foreground}
+% \pgfsetlayers{background,main,foreground}
+
+\begin{document}
+\title{Uživatelská dokumentace \\ CompulsiveSkinPicking - C\# CSP solver}
+\author{Michael Pokorný}
+\date{13.7.2014}
+
+\maketitle
+
+\tableofcontents
+
+\section{Úvod}
+CSP (\textit{Constrain Satisfaction Problem}) je klasický příklad
+NP-kompletního problému.
+Představme si množinu \textit{proměnných} $V$, kde proměnná
+$V_i$ může nabývat pouze hodnot z $D(V_i)$. Dále omezme hodnoty těchto proměnných
+\textit{podmínkami} $C$. Každá podmínka $C_i$ je $n_i$-ární relace nad definičními
+obory $n_i$ proměnných:
+$$C_i \subseteq D(V_{v_1})\times \cdots \times D(V_{v_{n_i}})$$
+Řešení CSP problému je takové přiřazení hodnot z $D(V_i)$ každé proměnné
+$V_i$, které splňuje všechny tyto podmínky. NP-kompletnost lze dokázat například
+triviálním převodem SAT na CSP.
+
+CSP se často používá jako alternativní reprezentace jiných těžkých problémů v
+umělé inteligenci. Při vhodném překladu z původního problému na CSP lze výhodně
+využít existující techniky pro CSP řešiče. Na CSP se například často převádí
+plánovací a rozvrhovací problémy.
+
+Účel této knihovny je paralelně řešit zadanou instanci CSP.
+
+\section{Reprezentace problému}
+Nejdříve je potřeba vytvořit reprezentaci daného problému.
+K tomu slouží třída \texttt{Problem}:
+\begin{lstlisting}
+using CompulsiveSkinPicking;
+...
+Problem problem = new Problem();
+\end{lstlisting}
+
+Problém se skládá z proměnných a podmínek.
+Nezáleží na pořadí, v jakém se přidávají -- pouze musí být každá podmínka
+přidána po všech proměnných, na kterých závisí.
+
+\subsection{Proměnné}
+Knihovna CompulsiveSkinPicking umožňuje pouze používat proměnné s konečnými
+diskrétními doménami. Proměnná se reprezentují instancemi třídy
+\texttt{Variable} a lze je přidávat voláním metod vlastnosti \texttt{Variables}
+třídy \texttt{Problem}. Takto lze přidat buď celočíselné proměnné, nebo
+booleovské proměnné. Booleovské proměnné jsou pouze speciální případ, lišící se
+standardní doménou $\{0;1\}$:
+\begin{lstlisting}
+// 0 <= X <= 10
+Variable x = problem.Variables.AddInteger(0, 10);
+// Volitelne jde nastavit jmeno.
+Variable x2 = problem.Variables.AddInteger(0, 10, "X2");
+
+// 3 promenne, -5 <= X < -3
+Variable[] abc = problem.Variables.AddIndeger(3, -5, -3);
+// Lze nastavit pojmenovavaci konvenci. Predane funkci
+// se predavaji indexy 0, 1, 2 pro pojmenovani kazde
+// promenne.
+Variable[] prom123 =
+  problem.Variables.AddIndeger(3, -5, -3, x =>
+    string.Format("Prom{0}", x+1)
+  );
+
+Variable x = problem.Variables.AddBoolean();
+Variable xs = problem.Variables.AddBooleans(10);
+\end{lstlisting}
+
+\subsection{Podmínky}
+Pro přidávání podmínek slouží vlastnost \texttt{Constrains} třídy
+\texttt{Problem}. Ke konstrukci podmínek se dá použít statická třída
+\texttt{Constrain}. Je možné také zkonstruovat vlastní podmínky (což popisuje
+podrobněji programátorská dokumentace).
+
+Následující podmínky je možno zkontruovat pomocí třídy \texttt{Constrains}:
+\begin{itemize}
+\item
+	\texttt{NotEqual(X,Y)}: hodnoty proměnných musí být různé
+\item
+	\texttt{Equal(X,Y)}: hodnoty proměnných musí být shodné
+\item
+	\texttt{Plus(X,Y,Z)}: součet hodnot proměnných X a Y musí být hodnota Z
+\item
+	\texttt{Minus(X,Y,Z)}: analogické k \texttt{Plus}
+\item
+	\texttt{Multiply(X,Y,Z)}: analogické k \texttt{Plus}
+\item
+	\texttt{Divide(X,Y,Z)}: analogické k \texttt{Plus}. Jedná se o
+	celočíselné dělení -- například $15 / 6 = 2$.
+\item
+	\texttt{Modulo(X,Y,Z)}: analogické k \texttt{Plus}. Jde o zbytek po
+	celočíselném dělení -- například $15 \% 6 = 3$.
+\item
+	\texttt{VariableNot(X,Y)}: pravdivost proměnné X musí být opak
+	logické hodnoty proměnné Y. Pravdivostí se pro účely této podmínky
+	a všech následujících rozumí nenulovost. (Toto umožňuje kombinovat
+	booleovské a celočíselné proměnné.)
+\item
+	\texttt{VariableAnd(X,Y,Z)}: pravdivost Z musí být pravdivost X $\wedge$
+	pravdivost Y
+\item
+	\texttt{VariableOr(X,Y,Z)}: analogicky, $\vee$
+\item
+	\texttt{VariableXor(X,Y,Z)}: analogicky, $\oplus$
+\item
+	\texttt{VariableImplies(X,Y,Z)}: analogicky, $\rightarrow$
+\item
+	\texttt{VariableGreaterThan(X,Y,Z)}: proměnná Z je pravdivá právě když
+	hodnota X je větší, než hodnota Y.
+\item
+	\texttt{VariableGreaterThanOrEqualTo(X,Y,Z)}: analogicky, $\geq$
+\item
+	\texttt{GreaterThan(X,Y)}: hodnota X musí být větší než hodnota Y
+\item
+	\texttt{GreaterThanOrEqualTo(X,Y,Z)}: analogicky, $\geq$
+\item
+	\texttt{AllDifferent(X,Y,\ldots)}: všechny předané proměnné musí mít
+	různé hodnoty. Přijímá jak pole proměnných, tak proměnné uvedené jako
+	jednotlivé parametry.
+\item
+	\texttt{Truth(X)}: proměnná X má pravdivou hodnotu
+\item
+	\texttt{Relational(r,X[])}: na předaném poli proměnných platí daná
+	relace. Relace je funkce, která dostane jako parametry hodnoty
+	jednotlivých proměnných (\texttt{int}) a vrátí, je-li splněna.
+	Příklad použití:
+\begin{lstlisting}
+problem.Constrains.Add(Constrain.Relational(
+	(x) => (x[0] + x[1] == x[2]) || (x[0] - x[2] == x[1]),
+	new Variable[] { A, B, C }
+));
+\end{lstlisting}
+	Proměnné lze uvést polem nebo jednotlivými argumenty.
+\item
+	\texttt{BinaryFunctional(f,A,B,Y)}: $Y=f(A,B)$. Příklad použití:
+\begin{lstlisting}
+problem.Constrains.Add(Constrain.BinaryFunctional(
+	(a,b) => Math.Abs(a - b),
+	X, Y, Z
+)); // |X-Y|=Z
+\end{lstlisting}
+\end{itemize}
+
+\subsection{Výrazové proměnné}
+Zatím uvedené podmínky nedávají dost pohodlí ke konstrukci složitějších
+algebraických omezení. K tomu lze využít výrazové proměnné.
+Jedná se o mechanismus, který na základě matematického výrazu nad proměnnými
+vyrobí novou proměnnou reprezentující jeho hodnotu.
+
+Pokud například máme proměnné S, E, N a D obsahující číslice, můžeme
+následujícím způsobem vyrobit proměnnou reprezentující hodnotu SEND:
+\begin{lstlisting}
+Variable SEND =
+  (S * 1000 + E * 100 + N * 10 + D).Build(problem);
+\end{lstlisting}
+
+Tento mechanismus je potřeba použít pro vytvoření proměnné v místě,
+kam bychom chtěli předat konstantu:
+\begin{lstlisting}
+problem.Constrains.Add(
+  Constrain.Plus(X, Y, 5.Build(problem))
+);
+\end{lstlisting}
+
+Mezi podporované operátory patří závorky, \texttt{+}, \texttt{-}, \texttt{*},
+\texttt{/}, \texttt{\%}, \texttt{\&}, \texttt{|}, \texttt{\^}, \texttt{!}.
+Kromě toho lze jako "pseudooperátory" používat statické metody
+\texttt{GreaterThan}, \texttt{GreaterThanOrEqualTo}, \texttt{LessThan},
+\texttt{LessThanOrEqualTo} třídy
+\texttt{CompulsiveSkinPicking.AlgebraicExpression.Node}. Tyto metody vrací
+booleovskou proměnnou, jejíž pravdivost záleží na splnění dané relace.
+
+\subsection{Optimalizace}
+Některé úlohy kromě splnění podmínek také vyžadují minimalizaci nebo
+maximalizaci hodnoty některé proměnné. Rozvrhování například může vyžadovat
+co nejkratší dobu vykonávání rozvrhu nebo co nejméně použitých zdrojů.
+
+Proměnnou k optimalizaci a směr optimalizace lze nastavit zavoláním metody
+\texttt{SetObjective} třídy \texttt{Problem}:
+\begin{lstlisting}
+problem.SetObjective(RESOURCES_USED, ObjectiveDirection.Minimize);
+\end{lstlisting}
+
+Jeden problém může optimalizovat nejvýše jednu proměnnou.
+
+\section{Volání solveru}
+Solver je komponenta řešící CSP problém. Knihovna CompulsiveSkinPicking obsahuje
+pouze jednu implementaci:
+\begin{lstlisting}
+Solver solver = new Solver();
+\end{lstlisting}
+Když je hotové zadání problému, stačí k jeho vyřešení zavolat na solveru metody
+\texttt{Solve}. Její první parametr je problém a její druhý výstupní parametr je
+proměnná, do které bude uloženo řešení (typu
+\texttt{CompulsiveSkinPicking.IVariableAssignment}). Tato metoda vrátí boolean, který značí,
+bylo-li řešení úspěšné:
+\begin{lstlisting}
+IVariableAssignment solution;
+if (!solver.Solve(problem, out solution)) {
+  Console.WriteLine("No solution exists :(");
+  Environment.Exit(1);
+}
+Console.WriteLine("Solution found");
+\end{lstlisting}
+
+Nalezené řešení lze zkoumat indexerem, jehož parametr je proměnná:
+\begin{lstlisting}
+Console.WriteLine("Resources used: {0}",
+  solution[RESOURCES_USED].Value
+);
+\end{lstlisting}
+
+\end{document}

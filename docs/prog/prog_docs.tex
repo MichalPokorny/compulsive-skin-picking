@@ -1,0 +1,559 @@
+\documentclass[a4paper]{article}
+% \usepackage{fullpage}
+\usepackage[utf8]{inputenc}
+\usepackage[nottoc,numbib]{tocbibind}
+% \usepackage{amssymb}
+% \usepackage{amsmath}
+\usepackage[czech]{babel}
+\usepackage{listings}
+\usepackage{todonotes}
+\usepackage{fancyhdr}
+\usepackage{listings}
+\usepackage{wrapfig}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{placeins}
+
+% \definecolor{string}{rgb}{0.7,0.0,0.0}
+% \definecolor{comment}{rgb}{0.13,0.54,0.13}
+% \definecolor{keyword}{rgb}{0.0,0.0,1.0}
+% \lstset{
+% % numbers=left,
+%   language=Ruby,
+%   frame=single,
+%   tabsize=2,
+%   basicstyle=\footnotesize\ttfamily,
+%   keywordstyle=\color{keyword}\textbf,
+%   commentstyle=\color{comment}\textit,
+%   stringstyle=\color{string}
+% }
+% \pgfdeclarelayer{background}
+% \pgfdeclarelayer{foreground}
+% \pgfsetlayers{background,main,foreground}
+
+\begin{document}
+\title{Programátorská dokumentace \\ CompulsiveSkinPicking - C\# CSP solver}
+\author{Michael Pokorný}
+\date{14.7.2014}
+
+\maketitle
+
+\tableofcontents
+
+\section{Reference}
+
+\subsection{\texttt{Debug}}
+Třída \texttt{Debug} slouží pro snadné ladění knihovny. Obsahuje metody
+\texttt{Write} a \texttt{WriteLine} s API analogickým k \texttt{System.Console}.
+Ladění lze zapínat a vypínat pomocí statické boolean proměnné
+\texttt{Debug.doDebug}. Je-li ladění zapnuto, chovají se zmíněné metody jako
+přislušné metody \texttt{System.Console}. V opačném připadě neprovádí tyto
+metody nic.
+
+\subsection{\texttt{IExternalEnumerator}}
+Generické rozhraní \texttt{IExternalEnumerator<T>} reprezentuje "ukazatel
+dovnitř seznamu", který lze "předávat hodnotou".
+Vyžaduje implementaci vlastnosti \texttt{T Value \{ get; \}}, která umožňuje
+přečíst prvek, na který tento "ukazatel" právě ukazuje, a implementaci
+metody \texttt{bool TryProgress(out IExternalEnumerator<T>)}. Tato metoda se
+pokusí vrátit "ukazatel" na další prvek v seznamu, pokud existuje. Pokud žádný
+další prvek neexistuje, vrátí \texttt{false}.
+
+\subsection{\texttt{Extensions}}
+Statická třída \texttt{Extensions} přidává dvě extension metody třídě
+\texttt{List<T>}. Metoda \texttt{GetExternalEnumerator} vrátí
+\texttt{IExternalEnumerator} přes prvky tohoto seznamu.
+\texttt{GetTransformedExternalEnumerator} umožňuje navíc předat funkci, která
+překládá z prvků seznamu na hodnoty vracené externím enumerátorem.
+
+\subsection{Reprezentace hodnot, \texttt{ValueRange}}
+Hodnoty proměnných jsou reprezentovány typem \texttt{int}, z čehož plynou
+omezení na jejich rozsah. Struktura \texttt{ValueRange} reprezentuje interval
+hodnot.
+
+Obsahuje dvě veřejné položky: \texttt{Minimum} a \texttt{Maximum}. Interval
+je daný jako množina těch \texttt{x}, že \texttt{Minimum <= x < Maximum}.
+
+Tato třída má dva konstruktory. Jeden přijímá pouze jeden \texttt{int} a vytvoří
+\texttt{ValueRange} reprezentující interval obsahující pouze tuto jednu doménu.
+Druhý přijímá hodnotu pro \texttt{Minimum} a pro \texttt{Maximum}.
+
+Metoda \texttt{SplitAndRemove} se volá, když je potřeba z intervalu odebrat
+prvek, který dostane jako argument. Vrací \texttt{IEnumerable<ValueRange>},
+který enumeruje přes všechny
+intervaly, které vzniknou, když se z intervalu odebere prvek. Například volání
+\texttt{SplitAndRemove} na intervalu $\{1,2,3,4\}$ s parametrem 2 vrátí
+intervaly $\{1\}$ a $\{3,4\}$.
+
+Metoda \texttt{Contains} přijímá jeden \texttt{int} parametr a vrací, je-li
+tento parametr obsažen v intervalu.
+
+Vlastnost \texttt{IsSingleton} vrací, jedná-li se o interval s jediným prvkem.
+Pokud se jedná o interval s jediným prvkem, lze tento prvek přečíst vlastností
+\texttt{Singleton}.
+
+Třída \texttt{ValueRange} přetěžuje metodu \texttt{ToString} tak, že vrací
+lidsky čitelnou reprezentaci intervalu (například \texttt{"VR<10>"} nebo
+\texttt{"VR<1...3>"} pro $\{1,2\}$).
+
+Vlastnost \texttt{Size} vrací počet hodnot uvnitř intervalu.
+Příbuzná metoda \texttt{AtLeastElements} s integerovým parametrem \texttt{x} vrací
+\texttt{true}, pokud má interval aspoň \texttt{x} prvků. Jedná se o metodu
+oddělenou od \texttt{Size}, protože první verze \texttt{ValueRange} obsahovala
+podporu pro nekonečné intervaly, jejichž velikost nelze reprezentovat integerem.
+
+Interval lze indexovat integerem:
+\begin{lstlisting}
+var range = new ValueRange(5, 10);
+Console.WriteLine(range[3]); // 8
+\end{lstlisting}
+
+Nakonec statická vlastnost \texttt{ValueRange.Boolean} vrací interval příslušící
+booleovským proměnným (tedy $\{0;1\}$).
+
+\subsection{\texttt{Variable}}
+Třída \texttt{Variable} reprezentuje CSP proměnnou. Je vázána na konkrétní
+instanci třídy \texttt{Problem}. V rámci tohoto problému má veřejný unikátní
+identifikátor \texttt{Identifier} typu \texttt{string}. Dále obsahuje vlastnost
+\texttt{Range} typu \texttt{ValueRange}, která ukládá interval, ve kterém se
+musí nacházet hodnota této proměnné. Tento interval musí vždy být konečný.
+
+Třída \texttt{Variable} přetěžuje metodu \texttt{ToString} a vrací
+\texttt{"Var<(Identifier)>"}. Dále obsahuje metodu \texttt{CompareTo}, která
+očekává jako parametr jinou proměnnou a vrací porovnání identifikátorů těchto
+dvou proměnných.
+
+\subsection{\texttt{IBacktrackable}}
+Rozhraní \texttt{IBacktrackable<T>} je společné pro všechny třídy, které jsou
+verzovatelné -- je možné uložit jejich stav do "úložného bodu" a později je
+možné tyto třídy požádat, aby se vrátily do předchozího "úložného bodu".
+Toto lze implementovat například \texttt{Stack}em ukládajícím vnitřní stav
+třídy, ale v některých případech toto lze provádět efektivněji. Tento interface
+odstiňuje detaily ukládání předchozích stavů od uživatelů těchto tříd.
+
+Tento interface používá "idiom rekurzivní šablony" -- očekávané použití je
+následující: \texttt{class MyClass: IBacktrackable<MyClass>}.
+
+Vyžaduje implementaci následujících metod:
+\begin{itemize}
+\item \texttt{T DeepDuplicate()}: vrátí hlubokou kopii třídy, která bude mít
+	separátní historii.
+\item \texttt{void AddSavepoint()}: uloží "do stacku" stav této třídy
+\item \texttt{void RollbackToSavepoint()}: vrátí třídu do posledního stavu "na
+	stacku" a "odebere tento stav ze stacku"
+\item \texttt{bool CanRollbackToSavepoint \{ get; \}}: vrací, má-li třída "na
+	stacku" uloženou nějakou předchozí verzi
+\end{itemize}
+
+\subsection{Částečné přiřazení hodnot: \texttt{IVariableAssignment}}
+Rozhraní \texttt{IVariableAssignment} reprezentuje částečné přiřazení hodnot
+proměnným - každá proměnná může buď mít přiřazenou hodnotu, nebo může mít danou
+množinu hodnot, které nejsou vyloučené. Třídy implementující
+\texttt{IVariableAssignment} musí mít metodu \texttt{Dump}, která vypíše lidsky
+čitelné přiřazení hodnot na standardní výstup, vlastnost \texttt{Variables},
+která vrátí \texttt{IEnumerable<Variable>} enumerující všechny proměnné a
+indexer, který přijímá parametr typu \texttt{Variable} a vrací instanci
+\texttt{IVariableManipulator}. Tento indexer slouží jako rozhraní k manipulaci
+s hodnotami nebo doménami jednotlivých proměnných.
+
+\texttt{IVariableAssignment} dále požaduje implementovat
+\texttt{IBacktrackable<IVariableAssignment>} -- přes instance
+\texttt{IVariableAssignment} se provádí DFS v CSP solveru.
+
+\texttt{IVariableManipulator} vyžaduje následující vlastnosti a metody:
+\begin{itemize}
+\item
+	\texttt{void Restrict(int v)}: odebere z definičního oboru této proměnné
+	hodnotu \texttt{v}
+\item
+	\texttt{int Value \{ get; set; \}}: getter umožňuje číst hodnotu
+	proměnné, je-li už plně přiřazena. Setter proměnné přiřadí definiční
+	obor obsahující pouze danou hodnotu, neboli tuto proměnnou na tuto
+	hodnotu nastaví.
+\item
+	\texttt{bool Ground \{ get; \}}: vrací, má-li tato proměnná jedinou
+	hodnotu.
+\item
+	\texttt{bool HasPossibleValues \{ get; \}}: vrací, je-li definiční obor
+	této proměnné neprázdný.
+\item
+	\texttt{bool CanBe(int v)}: pro danou hodnotu řekne, je-li obsažena v
+	současném definičním oboru proměnné.
+\item
+	\texttt{IExternalEnumerator<int> EnumeratePossibleValues()}: vrátí
+	externí enumerátor možných hodnot proměnné.
+\item
+	\texttt{int PossibleValueCount \{ get; \}}: vrací počet možných hodnot
+	proměnné.
+\end{itemize}
+
+\subsubsection{\texttt{VariableAssignment}}
+\texttt{VariableAssignment} je konkrétní implementace \texttt{IVariableAssignment}.
+Domény reprezentuje instancemi \texttt{Domain}, tedy seznamy intervalů.
+
+\subsection{\texttt{Constrains.IConstrain}}
+CSP podmínky jsou reprezentovány jako instance rozhraní
+\texttt{Constrains.IConstrain}. Toto rozhraní vyžaduje implementaci
+následujících metod:
+\begin{itemize}
+\item
+	\texttt{IEnumerable<ConstrainResult> Propagate(IVariableAssignment,
+	IEnumerable<PropagationTrigger>)} \\
+	Tato metoda dostane částečné přiřazení hodnot a seznam změn, které
+	proběhly při poslední propagaci podmínek a vrátí nové informace, které
+	podmínka umí odvodit.
+\item
+	\texttt{bool Satisfied(IVariableAssignment)}: vrátí \texttt{true}, pokud
+	při daném přiřazení proměnných je podmínka již splněna; jinak vrátí
+	\texttt{false}.
+\item
+	\texttt{IEnumerable<Variable> Dependencies \{ get; \}}: tato vlastnost
+	vrací seznam proměnných, na kterých závisí splněnost této podmínky.
+	Tento seznam musí být konstantní v průběhu řešení problému.
+\end{itemize}
+
+\subsection{\texttt{ConstrainResult}}
+Struktura \texttt{ConstrainResult} reprezentuje informaci, kterou podmínka umí
+odvodit podle daného dosazení do proměnných a nových informací z propagace
+jiných podmínek. Enumerace \texttt{ConstrainResult.Type} určuje následující typy
+struktury \texttt{ConstrainResult}:
+\begin{itemize}
+\item
+	\texttt{Success}: podmínka byla splněna a žádné další dosazení toto
+	nezmění. Solver bude odteď v této větvi tuto podmínku ignorovat, protože
+	už nemůže být porušena.
+
+	Tento výsledek lze získat statickou vlastností
+	\texttt{ConstrainResult.Success}.
+\item
+	\texttt{Failure}: podmínka již nemůže nikdy být splněna. Solver se
+	pokusí o backtrack, protože současné částečné řešení už nemůže vést na
+	úplné řešení.
+
+	Tento výsledek lze získat statickou vlastností
+	\texttt{ConstrainResult.Failure}.
+\item
+	\texttt{Restrict}: bylo odvozeno, že proměnná \texttt{X} nemůže mít
+	hodnotu \texttt{x}. Lze získat statickou metodou
+	\texttt{ConstrainResult.Restrict(X, v)}.
+\item
+	\texttt{Assign}: bylo odvozeno, že proměnná \texttt{X} musí ke splnění
+	podmínky mít hodnotu \texttt{x}. Lze získat statickou metodou
+	\texttt{ConstrainResult.Assign(X, v)}.
+\end{itemize}
+\texttt{ConstrainResult} přetěžuje \texttt{ToString} tak, aby vracelo lidsky
+čitelnou reprezentaci. Veřejné vlastnosti \texttt{Type type}, \texttt{int value}
+a \texttt{Variable variable} umožňují nahlížet dovnitř instance.
+
+\subsection{\texttt{Domain}}
+Třída \texttt{Domain} reprezentuje seznam hodnot, jaké může nabývat nějaká CSP
+proměnná. Implementuje \texttt{IBacktrackable<Domain>}.
+Má bezparametrický konstruktor a konstruktor přijímající \texttt{ValueRange},
+který bude sloužit jako obsah vytvořené domény.
+
+Doména je interně reprezentovaná jako uspořádaný seznam intervalů. Pro rychlejší
+řešení by šlo implementovat podobné třídy ukládající hodnoty například v malém
+poli.
+
+Dále má následující veřejné metody a vlastnosti:
+\begin{itemize}
+\item
+	\texttt{int Size \{ get; \}}: vrací počet hodnot v doméně.
+\item	\texttt{bool Ground \{ get; \}}: vrací, má-li doména jediný prvek.
+\item	\texttt{bool IsEmpty \{ get; \}}: vrací, je-li doména prázdná.
+\item	\texttt{bool Contains(int value)}: ptá se domény, obsahuje-li nějaký
+	integer
+\item	\texttt{void Restrict(int value)}: odebere danou hodnotu z domény
+\item	\texttt{int Value \{ get; set; \}}: má-li doména jedinou hodnotu,
+	getter ji vrátí. Setter tuto doménu nastaví na příslušnou hodnotu (pokud
+	ji doména obsahuje).
+\item	\texttt{override string ToString()}
+\end{itemize}
+
+\subsection{\texttt{ObjectiveDirection}}
+Enumerace \texttt{ObjectiveDirection} reprezentuje dva možné směry CSP
+optimalizace: \texttt{ObjectiveDirection.Minimize},
+\texttt{ObjectiveDirection.Maximize}.
+
+\subsection{\texttt{PropagationTrigger}}
+Tato struktura obsahuje nějakou jednotlivou událost, na kterou mohou reagovat
+jednotlivé CSP podmínky. Enumerace \texttt{PropagationTrigger.Type} obsahuje
+typy \texttt{Restrict} a \texttt{Assign}. \texttt{Restrict} znamená, že
+z definičního oboru nějaké proměnné zmizela nějaká hodnota, a lze vyrobit
+statickou metodou \texttt{Restrict(Variable, int)}. Obdobně \texttt{Assign}
+znamená, že do dané proměnné byla přiřazena hodnota (resp. definiční obor této
+proměnné se zmenšil na jeden prvek). Taktéž jde vyrobit statickou metodou
+\texttt{Assign(Variable, int)}. Struktura přetěžuje \texttt{ToString()}.
+
+\subsection{\texttt{Problem}}
+Třída \texttt{Problem} zveřejňuje přes vlastnosti \texttt{Variables} a
+\texttt{Constrains} rozhraní k manipulaci s proměnnými a
+podmínkami problému. Tato rozhraní mají jsou definována interfacy
+\texttt{Problem.IVariables} a \texttt{Problem.IConstrains}. Konkrétní
+implementace těchto rozhraní jsou třídy \texttt{Problem.Variables} a
+\texttt{Problem.Constrains}.
+
+Všechny proměnné v rámci jednoho problému mají unikátní identifikátory.
+Privátní metoda \texttt{GenerateVariableName()} třídy \texttt{Problem} generuje
+tyto identifikátory (nezadal-li je uživatel třídy).
+Třída \texttt{Problem} interně ukládá proměnné v \texttt{List<Variable>
+variables} a podmínky v \texttt{List<Constrains.IConstrain> constrains}.
+
+Rozhraní \texttt{IVariables} poskytuje následující funkce:
+\begin{itemize}
+\item \texttt{Variable[] AddIntegers(int count, int min, int max, Func<int,
+	string> naming = null)}
+\item \texttt{Variable AddInteger(int min, int max, string name = null)}
+\item \texttt{Variable AddInteger(ValueRange, string name = null)}
+\item \texttt{Variable AddBoolean(string name = null)}
+\item \texttt{Variable AddBooleans(int count, Func<int, string> naming = null)}
+\end{itemize}
+
+Rozhraní \texttt{IConstrains} poskytuje následující funkce:
+\begin{itemize}
+\item \texttt{void Add(params IConstrain[])}
+\item \texttt{void Add(IEnumerable<IConstrain>)}
+\item \texttt{void Remove(params IConstrain[])}
+\item \texttt{void Remove(IEnumerable<IConstrain>)}
+\end{itemize}
+
+Kromě těchto rozhraní dále třída \texttt{Problem} má tyto metody:
+\begin{itemize}
+\item \texttt{IVariableAssignment CreateEmptyAssignment()}:
+	vytvoří přiřazení hodnot, které každé proměnné pouze přiřadí její
+	standardní doménu.
+\item \texttt{List<IConstrain> AllConstrains()}
+\item \texttt{IExternalEnumerator<Variable> EnumerateVariables()}
+\item \texttt{void SetObjective(Variable, ObjectiveDirection)}:
+	nastaví, že cílem problému je optimalizovat danou proměnnou v daném
+	směru.
+	Interně se toto ukládá ve veřejných vlastnostech
+	\texttt{ObjectiveVariable}, resp. \texttt{ObjectiveDirection}. Je-li
+	\texttt{ObjectiveVariable == null}, neprovádí se optimalizace. Toto také
+	lze zjistit getterem \texttt{public bool IsOptimization \{ get; \}}.
+\end{itemize}
+
+\subsection{\texttt{Solver}}
+\texttt{Solver} je třída, která pro daný \texttt{Problem} hledá řešení -- buď
+libovolné, nebo optimální ve smyslu
+\texttt{ObjectiveVariable}+\texttt{Direction}.
+
+Veřejné rozhraní se skládá jenom z metod \texttt{Solve}, \texttt{SolveParallel}
+a \texttt{SolveSerial}. Všechny mají stejnou sémantiku volání: první parametr je
+řešená CSP instance (\texttt{Problem}) a druhý output parametr je
+\texttt{IVariableAssignment} -- do tohoto parametru se v případě úspěchu uloží
+nalezené řešení. Vracejí boolean, který říká, jestli se povedlo najít řešení.
+\texttt{Solve} deleguje volání na \texttt{SolveParallel}.
+
+Interně solver používá instance třídy \texttt{SolutionStep},
+která reprezentuje průběh řešení. Protected metoda
+\texttt{bool SearchSerial(SolutionState, out IVariableAssignment, CancellationToken)}
+provádí DFS nad daným \texttt{SolutionState} a pokud je
+\texttt{CancellationToken} cancelnutý, ukončí hledání a vrátí neúspěch.
+Paralelní hledání realizuje metoda \texttt{SearchAsync}.
+Vrací \texttt{Task<IVariableAssignment>}, jehož výsledek je buď \texttt{null},
+nebo splňující řešení. Její parametry jsou \texttt{SolutionState}, \texttt{int
+depth} a \texttt{CancellationToken}.
+\texttt{depth} se používá k paralelizaci pouze na několika (3) prvních
+proměnných, aby režie \texttt{Task}ů a vláken nebrala více času než skutečné
+hledání řešení (ve větší hloubce se přejde k \texttt{SearchSerial}).
+\texttt{CancellationToken}y předávají mezi jednotlivými větvemi výpočtu
+informaci o tom, že některá větev úspěšně skončila, takže ostatní větve můžou
+skončit s výpočty.
+
+Samotné metody \texttt{SearchSerial} a \texttt{SearchAsync} neumí diskrétní
+optimalizaci. Optimalizaci provádí protected metoda
+\texttt{bool Optimize(Problem, out IVariableAssigment, Func<Problem,
+IVariableAssignment>)}. Když metody \texttt{SolveParallel} nebo \texttt{SolveSerial}
+dostanou problém s optimalizací, delegují jej na metodu \texttt{Optimize}, které
+jako třetí argument "předají samy sebe".
+
+Diskrétní optimalizace funguje metodou branch-and-bound. Nejdříve se najde
+libovolné řešení, a na základě jeho hodnoty optimalizované proměnné se přidá
+do CSP podmínka, že hodnota optimalizované proměnné musí být větší, resp. nižší
+než zatím nejlepší známá. Informace o úspěšně nalezených řešeních a
+neřešitelných instancích nakonec dají půlením intervalu nejlepší splnitelnou
+hodnotu optimalizované proměnné.
+
+Metoda \texttt{Optimize} tedy do vstupní instance \texttt{Problem} přidává
+podmínky odpovídající známým odhadům na hodnotu optimalizované proměnné a
+nechává neoptimalizující solver najít libovolné řešení.
+
+\subsection{\texttt{SolutionState}}
+Třída \texttt{SolutionState} je stav řešení CSP problému. Kromě přiřazení hodnot
+proměnným (\texttt{IVariableAssignment assignment}) také obsahuje množinu doposud nesplněných podmínek
+(\texttt{List<IConstrain> Unsolved}) a externí enumerátor proměnné, jejíž
+hodnota se bude přiřazovat v dalším kroku, a hodnoty, která se bude zkoušet (\texttt{IExternalEnumerator<Variable>
+VariableChoice}, \texttt{IExternalEnumerator<int> ValueChoice}).
+Aby bylo možné provádět backtracking přes \texttt{SolutionState}, implementuje
+tato třída rozhraní \texttt{IBacktrackable<SolutionState>} (vnitřní implementace
+používá \texttt{Stack}).
+
+Veřejné rozhraní dále obsahuje tyto metody a vlastnosti:
+\begin{itemize}
+\item \texttt{bool Success \{ get; \}}: vrací, byly-li už všechny
+	podmínky vyřešeny.
+\item \texttt{void MarkConstrainSolved(IConstrain)}: označí danou podmínku za
+	splněnou
+\item \texttt{bool PropagateInitial()}: projde všechny proměnné, které mají
+	přiřazenou hodnotu, a zavoláním \texttt{PropagateTriggers} tuto informaci
+	rozpropaguje přes všechny podmínky.
+\item \texttt{void SetValueChoice()}: nastaví počáteční hodnotu
+	\texttt{ValueChoice} (na externí enumerátor přípustných hodnot
+	\texttt{VariableChoice})
+\item \texttt{void Assign(Variable, int)}, \texttt{void Restrict(Variable,
+	int)}: změní daným způsobem doménu proměnné
+\item \texttt{bool NextValueChoice()}: pokusí se nastavit další přípustnou
+	hodnotu \texttt{ValueChoice}.
+\item \texttt{bool Progress()}: přiřadí do \texttt{VariableChoice} hodnotu
+	\texttt{ValueChoice} a provede propagaci této informace přes
+	\texttt{PropagateTriggers}. Pokud propagace skončí neúspěchem, vrátí
+	\texttt{false}.
+\item \texttt{void Dump()}: vypíše na standardní výstup popis tohoto stavu
+	řešení.
+\end{itemize}
+
+Privátní metoda \texttt{bool PropagateTriggers(IEnumerable<PropagationTrigger>)}
+oznámí všem podmínkám uvedené změny v řešení (momentálně pouze typu
+\texttt{Restrict} nebo \texttt{Assign}, ale pro praktické použití se mohou hodit
+i jiné informace -- například změny minim a maxim, průnik s intervalem, atd.).
+Pokud nějaká podmínka z těchto informací odvodí nějaké další změny, tak se tyto
+změny ze všech podmínek znova zpropagují. Toto se opakuje, dokud nějaká podmínka
+odvozuje nové informace.
+Tato metoda vrací \texttt{true}, pokud propagace proběhla úspěšně. Pokud nějaká
+podmínka oznámila, že už nebude nikdy splnitelná, vrátí se \texttt{false}, což
+znamená, že se musí zaříznout DFS větev.
+
+Privátní metoda \texttt{ResolveFullyInstantiatedConstrains} najde všechny
+podmínky, jejichž závislosti už mají přiřazeny hodnoty. Narazí-li na "plně
+instanciovanou podmínku", která není splněna, vrátí \texttt{false}. Jinak všechny
+splněné "plně instanciované podmínky" označí za splněné a vrátí \texttt{true}.
+Používá se interně při propagaci k zajištění, že podmínky, které neprovádí
+žádnou vlastní propagaci, budou okamžikem dosazení do všech závislostí
+"odstraněny z agendy".
+
+\subsection{\texttt{CompulsiveSkinPicking.AlgebraicExpression}}
+Namespace \texttt{CompulsiveSkinPicking.AlgebraicExpression} obsahuje komponenty
+umožňující pro daný problém vyrobit proměnnou, která je vázána na výsledek
+nějakého výpočtu.
+Pokud například máme proměnné S, E, N a D obsahující číslice, můžeme
+následujícím způsobem vyrobit proměnnou reprezentující hodnotu SEND:
+\begin{lstlisting}
+Variable SEND =
+  (S * 1000 + E * 100 + N * 10 + D).Build(problem);
+\end{lstlisting}
+
+Z výrazu se sestrojí strom skládající se z tříd dědících od abstraktní třídy
+\texttt{Node}. Mezi její potomky patří třídy \texttt{VariableNode},
+\texttt{ConstantNode}, \texttt{UnaryNode} (na unární operace) a
+\texttt{BinaryNode} (na binární operace). Metoda \texttt{Build} zavolaná na
+třídě \texttt{Node} zavolá abstraktního visitora \texttt{ExpressorVisitor},
+který v předaném problému vytvoří hierarchii pomocných proměnných svázaných
+podmínkami, odpovídající danému výrazu.
+
+Instance \texttt{UnaryNode} a \texttt{BinaryNode} si pamatují svůj "typ" --
+například enumerate \texttt{BinaryNode.Type} obsahuje prvky \texttt{Plus},
+\texttt{Minus}, \texttt{Multiply}, \texttt{Divide}, \texttt{Modulo},
+\texttt{And}, \texttt{Or}, \texttt{Xor}, \texttt{Implies}, \texttt{GreaterThan}
+a \texttt{GreaterThanOrEqualTo}. Každá hodnota se přeloží na jeden druh podmínky
+ve statické třídě \texttt{Constrain}.
+
+\subsection{\texttt{Constrain}}
+Následující podmínky je možno zkontruovat pomocí statické třídy \texttt{Constrain},
+která poskytuje tenké rozhraní nad konstruktory tříd z namespacu
+\texttt{CompulsiveSkinPicking.Constrains}:
+\begin{itemize}
+\item
+	\texttt{NotEqual(X,Y)}: hodnoty proměnných musí být různé
+\item
+	\texttt{Equal(X,Y)}: hodnoty proměnných musí být shodné
+\item
+	\texttt{Plus(X,Y,Z)}: součet hodnot proměnných X a Y musí být hodnota Z
+\item
+	\texttt{Minus(X,Y,Z)}: analogické k \texttt{Plus}
+\item
+	\texttt{Multiply(X,Y,Z)}: analogické k \texttt{Plus}
+\item
+	\texttt{Divide(X,Y,Z)}: analogické k \texttt{Plus}. Jedná se o
+	celočíselné dělení -- například $15 / 6 = 2$.
+\item
+	\texttt{Modulo(X,Y,Z)}: analogické k \texttt{Plus}. Jde o zbytek po
+	celočíselném dělení -- například $15 \% 6 = 3$.
+\item
+	\texttt{VariableNot(X,Y)}: pravdivost proměnné X musí být opak
+	logické hodnoty proměnné Y. Pravdivostí se pro účely této podmínky
+	a všech následujících rozumí nenulovost. (Toto umožňuje kombinovat
+	booleovské a celočíselné proměnné.)
+\item
+	\texttt{VariableAnd(X,Y,Z)}: pravdivost Z musí být pravdivost X $\wedge$
+	pravdivost Y
+\item
+	\texttt{VariableOr(X,Y,Z)}: analogicky, $\vee$
+\item
+	\texttt{VariableXor(X,Y,Z)}: analogicky, $\oplus$
+\item
+	\texttt{VariableImplies(X,Y,Z)}: analogicky, $\rightarrow$
+\item
+	\texttt{VariableGreaterThan(X,Y,Z)}: proměnná Z je pravdivá právě když
+	hodnota X je větší, než hodnota Y.
+\item
+	\texttt{VariableGreaterThanOrEqualTo(X,Y,Z)}: analogicky, $\geq$
+\item
+	\texttt{GreaterThan(X,Y)}: hodnota X musí být větší než hodnota Y
+\item
+	\texttt{GreaterThanOrEqualTo(X,Y,Z)}: analogicky, $\geq$
+\item
+	\texttt{AllDifferent(X,Y,\ldots)}: všechny předané proměnné musí mít
+	různé hodnoty. Přijímá jak pole proměnných, tak proměnné uvedené jako
+	jednotlivé parametry.
+\item
+	\texttt{Truth(X)}: proměnná X má pravdivou hodnotu
+\item
+	\texttt{Relational(r,X[])}: na předaném poli proměnných platí daná
+	relace. Relace je funkce, která dostane jako parametry hodnoty
+	jednotlivých proměnných (\texttt{int}) a vrátí, je-li splněna.
+	Příklad použití:
+\begin{lstlisting}
+problem.Constrains.Add(Constrain.Relational(
+	(x) => (x[0] + x[1] == x[2]) || (x[0] - x[2] == x[1]),
+	new Variable[] { A, B, C }
+));
+\end{lstlisting}
+	Proměnné lze uvést polem nebo jednotlivými argumenty.
+\item
+	\texttt{BinaryFunctional(f,A,B,Y)}: $Y=f(A,B)$. Příklad použití:
+\begin{lstlisting}
+problem.Constrains.Add(Constrain.BinaryFunctional(
+	(a,b) => Math.Abs(a - b),
+	X, Y, Z
+)); // |X-Y|=Z
+\end{lstlisting}
+\end{itemize}
+
+\section{Testy}
+
+Knihovna obsahuje několik testů svých funkcí.
+Tyto testy jsou uloženy v namespacu \texttt{CompulsiveSkinPicking.Tests}.
+
+\begin{itemize}
+\item
+	\texttt{NQueens} je klasický test CSP solverů. Snaží se rozmístit $N$
+	královen na šachovnici $N\times N$ tak, aby se navzájem neohrožovaly.
+\item
+	\texttt{SAT} ukazuje možnost řešit instance SAT přes CSP solver.
+\item
+	\texttt{SendMoreMoney} a \texttt{SendMoreMoneyMaximize} ukazují řešení
+	algebrogramu $SEND+MORE=MONEY$, kde druhý test se snaží maximalizovat
+	číslo \texttt{MONEY}.
+\item
+	\texttt{ThreeColorsInGraph} ukazuje barvení grafu pomocí CSP.
+\item
+	\texttt{TwoTwoFour} je další algebrogram: $TWO+TWO=FOUR$.
+\item
+	Test \texttt{LargeAlgebrogram} řeší o něco složitější problém, než
+	\texttt{SendMoreMoney}: $(WE)(WANT)+SOME=MORE+MONEY+PLEASE/3$,
+	kde $S$,$E$,$N$,$M$,$O$,$R$,$Y$,$W$,$T$ jsou různé a $S$,$A$,$P$,$L$
+	jsou různé.
+\end{itemize}
+
+\end{document}

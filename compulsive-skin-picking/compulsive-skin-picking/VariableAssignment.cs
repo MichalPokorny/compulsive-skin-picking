@@ -39,7 +39,7 @@ namespace CompulsiveSkinPicking {
 			}
 
 			public void Restrict(int v) {
-				Domain.Restrict_WRONG_AND_SLOW(v);
+				Domain.Restrict(v);
 			}
 
 			public int Value {

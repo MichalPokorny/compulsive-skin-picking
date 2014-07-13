@@ -21,7 +21,7 @@ namespace CompulsiveSkinPicking {
 		private SolutionState() {
 		}
 
-		public void Log(string fmt, params object[] args) {
+		private void Log(string fmt, params object[] args) {
 			Debug.WriteLine("[Asg] {0}", string.Format(fmt, args));
 		}
 
