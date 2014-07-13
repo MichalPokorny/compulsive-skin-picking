@@ -97,7 +97,7 @@ lidsky čitelnou reprezentaci intervalu (například \texttt{"VR<10>"} nebo
 \texttt{"VR<1...3>"} pro $\{1,2\}$).
 
 Vlastnost \texttt{Size} vrací počet hodnot uvnitř intervalu.
-Příbuzná metoda \texttt{AtLeastElements} s integerovým parametrem \texttt{x} vrací
+Kromě toho příbuzná metoda \texttt{AtLeastElements} s integerovým parametrem \texttt{x} vrací
 \texttt{true}, pokud má interval aspoň \texttt{x} prvků. Jedná se o metodu
 oddělenou od \texttt{Size}, protože první verze \texttt{ValueRange} obsahovala
 podporu pro nekonečné intervaly, jejichž velikost nelze reprezentovat integerem.
@@ -141,13 +141,13 @@ Vyžaduje implementaci následujících metod:
 \item \texttt{void AddSavepoint()}: uloží "do stacku" stav této třídy
 \item \texttt{void RollbackToSavepoint()}: vrátí třídu do posledního stavu "na
 	stacku" a "odebere tento stav ze stacku"
-\item \texttt{bool CanRollbackToSavepoint \{ get; \}}: vrací, má-li třída "na
-	stacku" uloženou nějakou předchozí verzi
+\item \texttt{bool CanRollbackToSavepoint \{ get; \}}: vrací, lze-li
+	třídu vrátit do nějaké předchozí verze
 \end{itemize}
 
 \subsection{Částečné přiřazení hodnot: \texttt{IVariableAssignment}}
 Rozhraní \texttt{IVariableAssignment} reprezentuje částečné přiřazení hodnot
-proměnným - každá proměnná může buď mít přiřazenou hodnotu, nebo může mít danou
+proměnným -- každá proměnná může buď mít přiřazenou hodnotu, nebo může mít danou
 množinu hodnot, které nejsou vyloučené. Třídy implementující
 \texttt{IVariableAssignment} musí mít metodu \texttt{Dump}, která vypíše lidsky
 čitelné přiřazení hodnot na standardní výstup, vlastnost \texttt{Variables},
@@ -156,9 +156,10 @@ indexer, který přijímá parametr typu \texttt{Variable} a vrací instanci
 \texttt{IVariableManipulator}. Tento indexer slouží jako rozhraní k manipulaci
 s hodnotami nebo doménami jednotlivých proměnných.
 
-\texttt{IVariableAssignment} dále požaduje implementovat
-\texttt{IBacktrackable<IVariableAssignment>} -- přes instance
-\texttt{IVariableAssignment} se provádí DFS v CSP solveru.
+Protože instance \texttt{IVariableAssignment} jsou část \texttt{SolutionState},
+což je třída, přes kterou solver provádí DFS, musí implementace
+\texttt{IVariableAssignment} implementovat
+\texttt{IBacktrackable<IVariableAssignment>}.
 
 \texttt{IVariableManipulator} vyžaduje následující vlastnosti a metody:
 \begin{itemize}
@@ -197,8 +198,8 @@ CSP podmínky jsou reprezentovány jako instance rozhraní
 následujících metod:
 \begin{itemize}
 \item
-	\texttt{IEnumerable<ConstrainResult> Propagate(IVariableAssignment,
-	IEnumerable<PropagationTrigger>)} \\
+\texttt{IEnumerable<ConstrainResult> Propagate(\\
+IVariableAssignment, IEnumerable<PropagationTrigger>)} \\
 	Tato metoda dostane částečné přiřazení hodnot a seznam změn, které
 	proběhly při poslední propagaci podmínek a vrátí nové informace, které
 	podmínka umí odvodit.
@@ -280,7 +281,8 @@ Tato struktura obsahuje nějakou jednotlivou událost, na kterou mohou reagovat
 jednotlivé CSP podmínky. Enumerace \texttt{PropagationTrigger.Type} obsahuje
 typy \texttt{Restrict} a \texttt{Assign}. \texttt{Restrict} znamená, že
 z definičního oboru nějaké proměnné zmizela nějaká hodnota, a lze vyrobit
-statickou metodou \texttt{Restrict(Variable, int)}. Obdobně \texttt{Assign}
+statickou metodou \texttt{Restrict}, jejíž parametry jsou \texttt{Variable} a
+\texttt{int}. Obdobně \texttt{Assign}
 znamená, že do dané proměnné byla přiřazena hodnota (resp. definiční obor této
 proměnné se zmenšil na jeden prvek). Taktéž jde vyrobit statickou metodou
 \texttt{Assign(Variable, int)}. Struktura přetěžuje \texttt{ToString()}.
@@ -328,7 +330,7 @@ Kromě těchto rozhraní dále třída \texttt{Problem} má tyto metody:
 	nastaví, že cílem problému je optimalizovat danou proměnnou v daném
 	směru.
 	Interně se toto ukládá ve veřejných vlastnostech
-	\texttt{ObjectiveVariable}, resp. \texttt{ObjectiveDirection}. Je-li
+	\texttt{ObjectiveVariable}, resp. \texttt{Direction}. Je-li
 	\texttt{ObjectiveVariable == null}, neprovádí se optimalizace. Toto také
 	lze zjistit getterem \texttt{public bool IsOptimization \{ get; \}}.
 \end{itemize}
@@ -384,7 +386,7 @@ Třída \texttt{SolutionState} je stav řešení CSP problému. Kromě přiřaze
 proměnným (\texttt{IVariableAssignment assignment}) také obsahuje množinu doposud nesplněných podmínek
 (\texttt{List<IConstrain> Unsolved}) a externí enumerátor proměnné, jejíž
 hodnota se bude přiřazovat v dalším kroku, a hodnoty, která se bude zkoušet (\texttt{IExternalEnumerator<Variable>
-VariableChoice}, \texttt{IExternalEnumerator<int> ValueChoice}).
+VariableChoice},\\ \texttt{IExternalEnumerator<int> ValueChoice}).
 Aby bylo možné provádět backtracking přes \texttt{SolutionState}, implementuje
 tato třída rozhraní \texttt{IBacktrackable<SolutionState>} (vnitřní implementace
 používá \texttt{Stack}).
@@ -460,7 +462,7 @@ ve statické třídě \texttt{Constrain}.
 
 \subsection{\texttt{Constrain}}
 Následující podmínky je možno zkontruovat pomocí statické třídy \texttt{Constrain},
-která poskytuje tenké rozhraní nad konstruktory tříd z namespacu
+která poskytuje tenké rozhraní nad konstruktory tříd z namespacu \\
 \texttt{CompulsiveSkinPicking.Constrains}:
 \begin{itemize}
 \item
